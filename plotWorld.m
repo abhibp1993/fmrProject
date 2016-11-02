@@ -60,7 +60,7 @@ function plotWorld(World, N)
        world(hazards(obj).y,hazards(obj).x) = colorMap('Hazard');
     end
     h = imagesc(world);
-    
+    set(gca,'YDir','normal')
     for obj = 1:length(cars)
         car = cars(obj);
         text(car.x,car.y,1,sprintf('%d',car.id),'Color','white','FontSize',10);
@@ -69,7 +69,7 @@ function plotWorld(World, N)
         light = trafficLights(obj);
         text(light.x,light.y,1,'.','Color','white','FontSize',10);
     end
-    colormap(gray(10));
+   % colormap(gray(10));
    % axis ij
     axis square
    %set(h, 'EdgeColor', [.8 .8 .8]);
