@@ -18,25 +18,25 @@ function plotWorld(World, N)
         N = 20;
     end
     cars = [];
-    for obj = 1:size(World,1)
-        if isa(World(obj), 'car')
+    for obj = 1:size(World,2)
+        if isa(World(obj), 'Car')
             cars = [cars World(obj)]
         end
     end
     
     world = ones(N);
     figure;
-    for obj = 1:size(cars,1)
-       world(cars(obj).x,cars(obj).y) = 0; %% TODO: add in coloring for other objects
+    for obj = 1:size(cars,2)
+       world(cars(obj).y,cars(obj).x) = 0; %% TODO: add in coloring for other objects
     end
     h = pcolor(world);
     
-    for obj = 1:size(World,1)
+    for obj = 1:size(cars,2)
         car = cars(obj);
-        text(car.x+.5,car.y+.5,1,car.id,'Color','white','FontSize',10);
+        text(car.x+.5,car.y+.5,1,sprintf('%d',car.id),'Color','white','FontSize',10);
     end
     colormap(gray(2));
-    axis ij
+   % axis ij
     axis square
     set(h, 'EdgeColor', [.8 .8 .8]);
     hold on;
@@ -64,10 +64,15 @@ function plotWorld(World, N)
             end
         end
     end
-
-    dir(:,1) = cars(:).speed.*get_x(cars(:).direction)';
-    dir(:,2) = cars(:).speed.*get_y(cars(:).direction)';
-    quiver(cars(:).x+.5,cars(:).y+.5,dir(:,1), dir(:,2), 1/2, 'linewidth', 2);
+    for car_iterator = 1:size(cars,2)
+        car = cars(car_iterator);
+        dir_car(car_iterator,1) = car.speed.*get_x(car.h)';
+        dir_car(car_iterator,2) = car.speed.*get_y(car.h)';
+        x_car(car_iterator) = car.x+.5;
+        y_car(car_iterator) = car.y+.5;
+    end
+    quiver(x_car(:),y_car(:),dir_car(:,1), dir_car(:,2), 1/2, 'linewidth', 2);
+    %% TODO: Fix quiver
     
     %% Add key for cars and other objects
     title('World Plot of Cars');
