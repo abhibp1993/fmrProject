@@ -1,5 +1,5 @@
 %% Ari Goodman
-%% 11/1/2016
+%% 11/2/2016
 %% Given a vector of car states Car_States, plots them on a grid world of size N
 
 %% Inputs:
@@ -15,34 +15,68 @@ function plotWorld(World, N)
         disp('Error. Please input world.');
         return
     elseif nargin ==1
-        N = 20;
+        N = 20; %default world size
     end
+    keySet =   {'Car', 'Terrain', 'Road', 'Hazard', 'Yield', 'Stop', 'Red', 'Yellow', 'Green'};
+    valueSet = [0, 1, 2, 3, 4, 5, 6, 7 ,8];
+    colorMap = containers.Map(keySet,valueSet);
+    
     cars = [];
-    for obj = 1:size(World,2)
-        if isa(World(obj), 'Car')
-            cars = [cars World(obj)]
+    trafficSigns = [];
+    trafficLights = [];
+    roads = [];
+    hazards = [];
+    for obj = 1:length(World)
+        if ~(World(obj).y > N || World(obj).x > N || World(obj).y <= 0 || World(obj).x <= 0) %ensure it is within legal bounds
+            if isa(World(obj), 'Car') %determine type of object
+                cars = [cars World(obj)];
+            elseif isa(World(obj), 'TrafficSign')
+                trafficSigns = [trafficSigns World(obj)];
+            elseif isa(World(obj), 'TrafficLight')
+                trafficLights = [trafficLights World(obj)];
+            elseif isa(World(obj), 'Road')
+                roads = [roads World(obj)];
+            elseif isa(World(obj), 'Hazard')
+                hazards = [hazards World(obj)];
+            end
         end
     end
     
-    world = ones(N);
+    world = ones(N)*colorMap('Terrain');
     figure;
-    for obj = 1:size(cars,2)
-       world(cars(obj).y,cars(obj).x) = 0; %% TODO: add in coloring for other objects
+    for obj = 1:length(cars)
+       world(cars(obj).y,cars(obj).x) = colorMap('Car'); %set coloring
     end
-    h = pcolor(world);
+    for obj = 1:length(trafficSigns)
+       world(trafficSigns(obj).y,trafficSigns(obj).x) = colorMap(trafficSigns(obj).type); 
+    end
+    for obj = 1:length(trafficLights)
+       world(trafficLights(obj).y,trafficLights(obj).x) = colorMap(trafficLights(obj).color);
+    end
+    for obj = 1:length(roads)
+       world(roads(obj).y,roads(obj).x) = colorMap('Road');
+    end
+    for obj = 1:length(hazards)
+       world(hazards(obj).y,hazards(obj).x) = colorMap('Hazard');
+    end
+    h = imagesc(world);
     
-    for obj = 1:size(cars,2)
+    for obj = 1:length(cars)
         car = cars(obj);
-        text(car.x+.5,car.y+.5,1,sprintf('%d',car.id),'Color','white','FontSize',10);
+        text(car.x,car.y,1,sprintf('%d',car.id),'Color','white','FontSize',10);
     end
-    colormap(gray(2));
+    for obj = 1:length(trafficLights) %might be necessary to distinguish yield from yellow and red from stop
+        light = trafficLights(obj);
+        text(light.x,light.y,1,'.','Color','white','FontSize',10);
+    end
+    colormap(gray(10));
    % axis ij
     axis square
-    set(h, 'EdgeColor', [.8 .8 .8]);
+   %set(h, 'EdgeColor', [.8 .8 .8]);
     hold on;
         
     function x = get_x(direction)
-        for d = 1:size(direction,1)
+        for d = 1:length(direction)
             if direction(d) == 1
                 x(d)=-1;
             elseif direction(d) == 3
@@ -54,7 +88,7 @@ function plotWorld(World, N)
     end
 
     function y = get_y(direction)
-        for d = 1:size(direction,1)
+        for d = 1:length(direction)
             if direction(d) == 0
                 y(d)=1;
             elseif direction(d) == 2
@@ -64,16 +98,15 @@ function plotWorld(World, N)
             end
         end
     end
-    for car_iterator = 1:size(cars,2)
+    for car_iterator = 1:length(cars)
         car = cars(car_iterator);
-        dir_car(car_iterator,1) = car.speed.*get_x(car.h)';
-        dir_car(car_iterator,2) = car.speed.*get_y(car.h)';
-        x_car(car_iterator) = car.x+.5;
-        y_car(car_iterator) = car.y+.5;
+        dir_car(car_iterator,1) = 1/4*car.speed.*get_x(car.h)'; %must prescale vectors due to relative scaling
+        dir_car(car_iterator,2) = 1/4*car.speed.*get_y(car.h)';
+        x_car(car_iterator) = car.x;
+        y_car(car_iterator) = car.y;
     end
-    quiver(x_car(:),y_car(:),dir_car(:,1), dir_car(:,2), 1/2, 'linewidth', 2);
-    %% TODO: Fix quiver
-    
+    quiver(x_car(:),y_car(:),dir_car(:,1), dir_car(:,2), 0, 'linewidth', 2); %ensure no relative scaling
+    colorbar('Ticks',valueSet,'TickLabels',keySet)
     %% Add key for cars and other objects
     title('World Plot of Cars');
 end

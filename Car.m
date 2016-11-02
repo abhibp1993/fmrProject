@@ -22,6 +22,7 @@ classdef Car
         
         function [] = print(obj)
             fprintf('Car id = %d, X = %d, Y = %d\n', obj.id, obj.x, obj.y);
+            %% TODO: find error in printing. seems to be printing array of cars 'sideways'
         end
     end
     
