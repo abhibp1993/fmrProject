@@ -63,13 +63,21 @@ function plotWorld(World, N)
     set(gca,'YDir','normal')
     for obj = 1:length(cars)
         car = cars(obj);
+        senseMask = rot90(senseMask,car.h);
         text(car.x,car.y,1,sprintf('%d',car.id),'Color','white','FontSize',10);
+        for sight_i = 1:size(senseMask,1)
+            for sight_j = 1:size(senseMask,1)
+                if(senseMask(sight_i,sight_j))
+                    text(car.x+sight_i-size(senseMask,1)/2-.5,car.y+sight_j-size(senseMask,2)/2-.5,'o','Color','green','Fontsize',8);
+                end
+            end
+        end
     end
     for obj = 1:length(trafficLights) %might be necessary to distinguish yield from yellow and red from stop
         light = trafficLights(obj);
         text(light.x,light.y,1,'.','Color','white','FontSize',10);
     end
-   % colormap(gray(10));
+    colormap(gray(10));
    % axis ij
     axis square
    %set(h, 'EdgeColor', [.8 .8 .8]);

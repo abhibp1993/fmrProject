@@ -2,7 +2,7 @@
 % xLength: the number of cell in the horizontal direction.
 % yLength: the number of cell in the vertical direction.
 % objects: vecotr of objects,
-classdef World
+classdef World < handle
 	properties
 		xLength=20;
 		yLength=20;
@@ -19,9 +19,10 @@ classdef World
 		function plotWorld(obj)
 			figure;
 			plot(obj.xLength,obj.yLength)
-		end
+        end
 		
 		function addObject(this, object)
+            %% TODO: check to make sure x and y are within bounds!!!
 			this.objects(object.x,object.y) = {[this.objects{object.x, object.y} , object]};
 		end
 		
@@ -33,8 +34,6 @@ classdef World
 		
 		function result = checkAP(this, x,y,AP)
 			result = AP(this.object{x,y});
-		end
-		
-		
+        end
 	end
 end
