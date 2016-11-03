@@ -15,7 +15,7 @@ function [ car ] = action( car, act )
 
     % Wrapper around actions
     if isequal(act, 'straight')
-        car = goStraight(car, car.speed);
+        car = goStraight(car, car.state.speed);
     elseif isequal(act, 'left')
         car = turnLeft(car);
     elseif isequal(act, 'right')
@@ -27,17 +27,17 @@ end
 function car = goStraight(car, stepSize)
     % We define the left turn as a diagonally left move. 
 
-    if car.h == Orientation.north
-        car.y = car.y + stepSize;
+    if car.state.h == Orientation.north
+        car.state.y = car.state.y + stepSize;
         
-    elseif car.h == Orientation.west
-        car.x = car.x - stepSize;
+    elseif car.state.h == Orientation.west
+        car.state.x = car.state.x - stepSize;
         
-    elseif car.h == Orientation.south
-        car.y = car.y - stepSize;
+    elseif car.state.h == Orientation.south
+        car.state.y = car.state.y - stepSize;
 
-    elseif car.h == Orientation.east
-        car.x = car.x + stepSize;
+    elseif car.state.h == Orientation.east
+        car.state.x = car.state.x + stepSize;
             
     end
     
@@ -46,25 +46,25 @@ end
 function car = turnLeft(car)
 % We define the left turn as a diagonally left move. 
 
-    if car.h == Orientation.north
-        car.x = car.x - 1;
-        car.y = car.y + 1;
-        car.h = Orientation.west;
+    if car.state.h == Orientation.north
+        car.state.x = car.state.x - 1;
+        car.state.y = car.state.y + 1;
+        car.state.h = Orientation.west;
         
-    elseif car.h == Orientation.west
-        car.x = car.x - 1;
-        car.y = car.y - 1;
-        car.h = Orientation.south;
+    elseif car.state.h == Orientation.west
+        car.state.x = car.state.x - 1;
+        car.state.y = car.state.y - 1;
+        car.state.h = Orientation.south;
         
-    elseif car.h == Orientation.south
-        car.x = car.x + 1;
-        car.y = car.y - 1;
-        car.h = Orientation.east;
+    elseif car.state.h == Orientation.south
+        car.state.x = car.state.x + 1;
+        car.state.y = car.state.y - 1;
+        car.state.h = Orientation.east;
         
-    elseif car.h == Orientation.east
-        car.x = car.x + 1;
-        car.y = car.y + 1;
-        car.h = Orientation.north;        
+    elseif car.state.h == Orientation.east
+        car.state.x = car.state.x + 1;
+        car.state.y = car.state.y + 1;
+        car.state.h = Orientation.north;        
     end
     
 end
@@ -72,25 +72,25 @@ end
 function car = turnRight(car)
 % We define the left turn as a diagonally left move. 
 
-    if car.h == Orientation.north
-        car.x = car.x + 1;
-        car.y = car.y + 1;
-        car.h = Orientation.east;
+    if car.state.h == Orientation.north
+        car.state.x = car.state.x + 1;
+        car.state.y = car.state.y + 1;
+        car.state.h = Orientation.east;
         
-    elseif car.h == Orientation.west
-        car.x = car.x - 1;
-        car.y = car.y + 1;
-        car.h = Orientation.north;
+    elseif car.state.h == Orientation.west
+        car.state.x = car.state.x - 1;
+        car.state.y = car.state.y + 1;
+        car.state.h = Orientation.north;
         
-    elseif car.h == Orientation.south
-        car.x = car.x - 1;
-        car.y = car.y - 1;
-        car.h = Orientation.west;
+    elseif car.state.h == Orientation.south
+        car.state.x = car.state.x - 1;
+        car.state.y = car.state.y - 1;
+        car.state.h = Orientation.west;
         
-    elseif car.h == Orientation.east
-        car.x = car.x + 1;
-        car.y = car.y - 1;
-        car.h = Orientation.south;        
+    elseif car.state.h == Orientation.east
+        car.state.x = car.state.x + 1;
+        car.state.y = car.state.y - 1;
+        car.state.h = Orientation.south;        
     end
     
 end

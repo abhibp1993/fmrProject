@@ -5,11 +5,6 @@ classdef Car < StateMachine
     
     properties
         id      % unique id of the car
-        x       % x-position (row)
-        y       % y-posiiton (col)
-        h       % heading (Orientation object)
-        speed   % speed in steps/unit-time
-        
     end
     
     
@@ -17,28 +12,31 @@ classdef Car < StateMachine
         
         function obj = Car(id, x, y, h, speed)
             obj.id = id;
-            obj.x = x;
-            obj.y = y;
-            obj.h = h;
-            obj.speed = speed;
+            obj.state.x = x;
+            obj.state.y = y;
+            obj.state.h = h;
+            obj.state.speed = speed;
             
             obj.senseMask = ones(5, 5);
         end
         
         function pos = position(obj)
-            pos = [obj.x, obj.y];
+            pos = [obj.state.x, obj.state.y];
         end
         
         function pos = pose(obj)
-            pos = [obj.x, obj.y, obj.h];
+            pos = [obj.state.x, obj.state.y, obj.state.h];
         end
         
-        function output = step(obj, sensorInput)
+        function obj = step(obj, sensorInput)
+            [nState, act] = obj.transition(obj.state, sensorInput);
             
+            obj.state = nState;
+            obj = action(obj, act);
         end
         
         function [] = print(obj)
-            fprintf('Car id = %d, X = %d, Y = %d\n', obj.id, obj.x, obj.y);
+            fprintf('Car id = %d, X = %d, Y = %d\n', obj.id, obj.state.x, obj.state.y);
             % TODO: find error in printing. seems to be printing array of cars 'sideways'
         end
        
