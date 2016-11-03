@@ -4,39 +4,37 @@
 % objects: vecotr of objects,
 classdef World
 	properties
-		xLength;
-		yLength;
-		objects=[];
+		xLength=20;
+		yLength=20;
+		objects=cell(20,20);
 	end
 	
 	methods
-		function W = World(X, Y)
-			W.xLength = X;
-			W.yLength = Y;
+		function this = World(X, Y)
+			this.xLength = X;
+			this.yLength = Y;
+			this.objects=cell(X,Y);
 		end
 		
-		function plotWorld(World)
+		function plotWorld(obj)
 			figure;
 			plot(obj.xLength,obj.yLength)
 		end
 		
-		function addObject(object)
-			objects = [objects;object];
+		function addObject(this, object)
+			this.objects(object.x,object.y) = {[this.objects{object.x, object.y} , object]};
 		end
 		
-		function stepWorld()
-			for i = 1:length(objects)
-				objects(i).step();
+		function stepWorld(W)
+			for i = 1:length(W.objects)
+				W.objects(i).step();
 			end
 		end
 		
-		function AP = checkAP(x,y)
-			for i = 1:length(objects)
-				
-				if (sum((object.position) == [x,y]) == 2)
-				% todo	
-				end
-			end
+		function result = checkAP(this, x,y,AP)
+			result = AP(this.object{x,y});
 		end
+		
+		
 	end
 end
