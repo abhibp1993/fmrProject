@@ -16,60 +16,64 @@ function plotWorld(World)
     valueSet = [0, 1, 2, 3, 4, 5, 6, 7 ,8];
     colorMap = containers.Map(keySet,valueSet);
    
-    cars = [];
-    trafficSigns = [];
-    trafficLights = [];
-    roads = [];
-    hazards = [];
-    for obj = 1:length(World.objects)
-        %if ~(World(obj).y > N || World(obj).x > N || World(obj).y <= 0 || World(obj).x <= 0) %ensure it is within legal bounds
-        if isa(World.objects(obj), 'Car') %determine type of object
-            cars = [cars World.objects(obj)];
-        elseif isa(World.objects(obj), 'TrafficSign')
-            trafficSigns = [trafficSigns World.objects(obj)];
-        elseif isa(World.objects(obj), 'TrafficLight')
-            trafficLights = [trafficLights World.objects(obj)];
-        elseif isa(World.objects(obj), 'Road')
-            roads = [roads World.objects(obj)];
-        elseif isa(World.objects(obj), 'Hazard')
-            hazards = [hazards World.objects(obj)];
+    cars = {};
+    trafficSigns = {};
+    trafficLights = {};
+    roads = {};
+    hazards = {};
+    for obj_i = 1:size(World.objects,1)
+        for obj_j = 1:size(World.objects,2)
+            for obj_k = 1:length(World.objects{obj_i,obj_j})
+                %if ~(World(obj).y > N || World(obj).x > N || World(obj).y <= 0 || World(obj).x <= 0) %ensure it is within legal bounds
+                if isa(World.objects{obj_i,obj_j}(obj_k), 'SDC') || isa(World.objects{obj_i,obj_j}(obj_k), 'HDC') %determine type of object
+                    cars = [cars World.objects{obj_i,obj_j}(obj_k)];
+                elseif isa(World.objects{obj_i,obj_j}(obj_k), 'TrafficSign')
+                    trafficSigns = [trafficSigns World.objects{obj_i,obj_j}(obj_k)];
+                elseif isa(World.objects{obj_i,obj_j}(obj_k), 'TrafficLight')
+                    trafficLights = [trafficLights World.objects{obj_i,obj_j}(obj_k)];
+                elseif isa(World.objects{obj_i,obj_j}(obj_k), 'Road')
+                    roads = [roads World.objects{obj_i,obj_j}(obj_k)];
+                elseif isa(World.objects{obj_i,obj_j}(obj_k), 'Hazard')
+                    hazards = [hazards World.objects{obj_i,obj_j}(obj_k)];
+                end
+            end
         end
     end
     
-    world = ones(N)*colorMap('Terrain');
+    world = ones(World.xLength, World.yLength)*colorMap('Terrain');
     figure;
     for obj = 1:length(cars)
-       world(cars(obj).y,cars(obj).x) = colorMap('Car'); %set coloring
+       world(cars(obj).state.y,cars(obj).state.x) = colorMap('Car'); %set coloring
     end
     for obj = 1:length(trafficSigns)
-       world(trafficSigns(obj).y,trafficSigns(obj).x) = colorMap(trafficSigns(obj).type); 
+       world(trafficSigns(obj).state.y,trafficSigns(obj).state.x) = colorMap(trafficSigns(obj).type); 
     end
     for obj = 1:length(trafficLights)
-       world(trafficLights(obj).y,trafficLights(obj).x) = colorMap(trafficLights(obj).color);
+       world(trafficLights(obj).state.y,trafficLights(obj).state.x) = colorMap(trafficLights(obj).color);
     end
     for obj = 1:length(roads)
-       world(roads(obj).y,roads(obj).x) = colorMap('Road');
+       world(roads(obj).state.y,roads(obj).state.x) = colorMap('Road');
     end
     for obj = 1:length(hazards)
-       world(hazards(obj).y,hazards(obj).x) = colorMap('Hazard');
+       world(hazards(obj).state.y,hazards(obj).state.x) = colorMap('Hazard');
     end
     h = imagesc(world);
     set(gca,'YDir','normal')
     for obj = 1:length(cars)
         car = cars(obj);
-        senseMask = rot90(car.senseMask,car.h);
-        text(car.x,car.y,1,sprintf('%d',car.id),'Color','white','FontSize',10);
+        senseMask = rot90(car.senseMask,car.state.h);
+        text(car.state.x,car.state.y,1,sprintf('%d',car.id),'Color','white','FontSize',10);
         for sight_i = 1:size(senseMask,1)
             for sight_j = 1:size(senseMask,1)
                 if(senseMask(sight_i,sight_j))
-                    text(car.x+sight_i-size(senseMask,1)/2-.5,car.y+sight_j-size(senseMask,2)/2-.5,'o','Color','green','Fontsize',8);
+                    text(car.state.x+sight_i-size(senseMask,1)/2-.5,car.state.y+sight_j-size(senseMask,2)/2-.5,'o','Color','green','Fontsize',8);
                 end
             end
         end
     end
     for obj = 1:length(trafficLights) %might be necessary to distinguish yield from yellow and red from stop
         light = trafficLights(obj);
-        text(light.x,light.y,1,'.','Color','white','FontSize',10);
+        text(light.state.x,light.state.y,1,'.','Color','white','FontSize',10);
     end
     colormap(gray(10));
    % axis ij
@@ -102,12 +106,14 @@ function plotWorld(World)
     end
     for car_iterator = 1:length(cars)
         car = cars(car_iterator);
-        dir_car(car_iterator,1) = 1/4*car.speed.*get_x(car.h)'; %must prescale vectors due to relative scaling
-        dir_car(car_iterator,2) = 1/4*car.speed.*get_y(car.h)';
-        x_car(car_iterator) = car.x;
-        y_car(car_iterator) = car.y;
+        dir_car(car_iterator,1) = 1/4*car.state.speed.*get_x(car.state.h)'; %must prescale vectors due to relative scaling
+        dir_car(car_iterator,2) = 1/4*car.state.speed.*get_y(car.state.h)';
+        x_car(car_iterator) = car.state.x;
+        y_car(car_iterator) = car.state.y;
     end
-    quiver(x_car(:),y_car(:),dir_car(:,1), dir_car(:,2), 0, 'linewidth', 2); %ensure no relative scaling
+    if length(cars) > 0
+        quiver(x_car(:),y_car(:),dir_car(:,1), dir_car(:,2), 0, 'linewidth', 2); %ensure no relative scaling
+    end
     colorbar('Ticks',valueSet,'TickLabels',keySet)
     %% Add key for cars and other objects
     title('World Plot of Cars');
