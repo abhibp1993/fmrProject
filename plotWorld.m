@@ -10,35 +10,29 @@
 %% Outputs:
 % Plot of cars.
 
-function plotWorld(World, N)
-    if nargin == 0
-        disp('Error. Please input world.');
-        return
-    elseif nargin ==1
-        N = 20; %default world size
-    end
+function plotWorld(World)
+   
     keySet =   {'Car', 'Terrain', 'Road', 'Hazard', 'Yield', 'Stop', 'Red', 'Yellow', 'Green'};
     valueSet = [0, 1, 2, 3, 4, 5, 6, 7 ,8];
     colorMap = containers.Map(keySet,valueSet);
-    
+   
     cars = [];
     trafficSigns = [];
     trafficLights = [];
     roads = [];
     hazards = [];
-    for obj = 1:length(World)
-        if ~(World(obj).y > N || World(obj).x > N || World(obj).y <= 0 || World(obj).x <= 0) %ensure it is within legal bounds
-            if isa(World(obj), 'Car') %determine type of object
-                cars = [cars World(obj)];
-            elseif isa(World(obj), 'TrafficSign')
-                trafficSigns = [trafficSigns World(obj)];
-            elseif isa(World(obj), 'TrafficLight')
-                trafficLights = [trafficLights World(obj)];
-            elseif isa(World(obj), 'Road')
-                roads = [roads World(obj)];
-            elseif isa(World(obj), 'Hazard')
-                hazards = [hazards World(obj)];
-            end
+    for obj = 1:length(World.objects)
+        %if ~(World(obj).y > N || World(obj).x > N || World(obj).y <= 0 || World(obj).x <= 0) %ensure it is within legal bounds
+        if isa(World.objects(obj), 'Car') %determine type of object
+            cars = [cars World.objects(obj)];
+        elseif isa(World.objects(obj), 'TrafficSign')
+            trafficSigns = [trafficSigns World.objects(obj)];
+        elseif isa(World.objects(obj), 'TrafficLight')
+            trafficLights = [trafficLights World.objects(obj)];
+        elseif isa(World.objects(obj), 'Road')
+            roads = [roads World.objects(obj)];
+        elseif isa(World.objects(obj), 'Hazard')
+            hazards = [hazards World.objects(obj)];
         end
     end
     
@@ -63,7 +57,7 @@ function plotWorld(World, N)
     set(gca,'YDir','normal')
     for obj = 1:length(cars)
         car = cars(obj);
-        senseMask = rot90(senseMask,car.h);
+        senseMask = rot90(car.senseMask,car.h);
         text(car.x,car.y,1,sprintf('%d',car.id),'Color','white','FontSize',10);
         for sight_i = 1:size(senseMask,1)
             for sight_j = 1:size(senseMask,1)
