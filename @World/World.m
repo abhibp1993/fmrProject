@@ -29,7 +29,11 @@ classdef World
 		
 		function this = addObject(this, object)
 			%% TODO: check to make sure x and y are within bounds!!!
-			this.objects(object.state.x,object.state.y) = {[this.objects{object.state.x, object.state.y} , object]};
+            if isempty(this.objects{object.state.x,object.state.y}) 
+                this.objects(object.state.x,object.state.y) = {object};
+            else
+                this.objects(object.state.x,object.state.y) = {{this.objects{object.state.x, object.state.y} , object}};
+            end
 		end
 		
 		function W = stepWorld(W)

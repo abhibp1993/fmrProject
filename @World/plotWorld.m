@@ -12,8 +12,8 @@
 
 function plotWorld(World)
    
-    keySet =   {'Car', 'Terrain', 'Road', 'Hazard', 'Yield', 'Stop', 'Red', 'Yellow', 'Green'};
-    valueSet = [0, 1, 2, 3, 4, 5, 6, 7 ,8];
+    keySet =   {'Car', 'Terrain', 'Road', 'Hazard', 'Yield', 'Stop', 'RED', 'YELLOW', 'GREEN'};
+    valueSet = [30,100,70,20,10,40,40,10,55];
     colorMap = containers.Map(keySet,valueSet);
    
     cars = {};
@@ -21,24 +21,44 @@ function plotWorld(World)
     trafficLights = {};
     roads = {};
     hazards = {};
+    %TODO: make more efficient
     for obj_i = 1:size(World.objects,1)
         for obj_j = 1:size(World.objects,2)
-            for obj_k = 1:length(World.objects{obj_i,obj_j})
-                %if ~(World(obj).y > N || World(obj).x > N || World(obj).y <= 0 || World(obj).x <= 0) %ensure it is within legal bounds
-                if isa(World.objects{obj_i,obj_j}(obj_k), 'SDC') || isa(World.objects{obj_i,obj_j}(obj_k), 'HDC') %determine type of object
-                    cars = [cars World.objects{obj_i,obj_j}(obj_k)];
-                elseif isa(World.objects{obj_i,obj_j}(obj_k), 'TrafficSign')
-                    trafficSigns = [trafficSigns World.objects{obj_i,obj_j}(obj_k)];
-                elseif isa(World.objects{obj_i,obj_j}(obj_k), 'TrafficLight')
-                    trafficLights = [trafficLights World.objects{obj_i,obj_j}(obj_k)];
-                elseif isa(World.objects{obj_i,obj_j}(obj_k), 'Road')
-                    roads = [roads World.objects{obj_i,obj_j}(obj_k)];
-                elseif isa(World.objects{obj_i,obj_j}(obj_k), 'Hazard')
-                    hazards = [hazards World.objects{obj_i,obj_j}(obj_k)];
+            if(length(World.objects{obj_i,obj_j}) == 1)
+                if isa(World.objects{obj_i,obj_j}, 'SDC') || isa(World.objects{obj_i,obj_j}, 'HDC') %determine type of object
+                    cars = [cars World.objects{obj_i,obj_j}];
+                elseif isa(World.objects{obj_i,obj_j}, 'TrafficSign')
+                    trafficSigns = [trafficSigns World.objects{obj_i,obj_j}];
+                elseif isa(World.objects{obj_i,obj_j}, 'TrafficLight')
+                    trafficLights = [trafficLights World.objects{obj_i,obj_j}];
+                elseif isa(World.objects{obj_i,obj_j}, 'Road')
+                    roads = [roads World.objects{obj_i,obj_j}];
+                elseif isa(World.objects{obj_i,obj_j}, 'Hazard')
+                    hazards = [hazards World.objects{obj_i,obj_j}];
+                end
+            else
+                for obj_k = 1:length(World.objects{obj_i,obj_j})
+                    %if ~(World(obj).y > N || World(obj).x > N || World(obj).y <= 0 || World(obj).x <= 0) %ensure it is within legal bounds
+                    if isa(World.objects{obj_i,obj_j}{obj_k}, 'SDC') || isa(World.objects{obj_i,obj_j}{obj_k}, 'HDC') %determine type of object
+                        cars = [cars World.objects{obj_i,obj_j}{obj_k}];
+                    elseif isa(World.objects{obj_i,obj_j}{obj_k}, 'TrafficSign')
+                        trafficSigns = [trafficSigns World.objects{obj_i,obj_j}{obj_k}];
+                    elseif isa(World.objects{obj_i,obj_j}{obj_k}, 'TrafficLight')
+                        trafficLights = [trafficLights World.objects{obj_i,obj_j}{obj_k}];
+                    elseif isa(World.objects{obj_i,obj_j}{obj_k}, 'Road')
+                        roads = [roads World.objects{obj_i,obj_j}{obj_k}];
+                    elseif isa(World.objects{obj_i,obj_j}{obj_k}, 'Hazard')
+                        hazards = [hazards World.objects{obj_i,obj_j}{obj_k}];
+                    end
                 end
             end
         end
     end
+    
+    %% TODO: change how traffic lights and signals are displayed such that there are layers:
+    %% bottom layer: terrain/road
+    %% middle layer: traffic signal / hazard
+    %% top layer:    car
     
     world = ones(World.xLength, World.yLength)*colorMap('Terrain');
     figure;
@@ -49,7 +69,7 @@ function plotWorld(World)
        world(trafficSigns(obj).state.y,trafficSigns(obj).state.x) = colorMap(trafficSigns(obj).type); 
     end
     for obj = 1:length(trafficLights)
-       world(trafficLights(obj).state.y,trafficLights(obj).state.x) = colorMap(trafficLights(obj).color);
+       world(trafficLights(obj).state.y,trafficLights(obj).state.x) = colorMap(trafficLights(obj).state.light);
     end
     for obj = 1:length(roads)
        world(roads(obj).state.y,roads(obj).state.x) = colorMap('Road');
@@ -75,7 +95,7 @@ function plotWorld(World)
         light = trafficLights(obj);
         text(light.state.x,light.state.y,1,'.','Color','white','FontSize',10);
     end
-    colormap(gray(10));
+    colormap(colorcube(20));
    % axis ij
     axis square
    %set(h, 'EdgeColor', [.8 .8 .8]);
@@ -114,7 +134,8 @@ function plotWorld(World)
     if length(cars) > 0
         quiver(x_car(:),y_car(:),dir_car(:,1), dir_car(:,2), 0, 'linewidth', 2); %ensure no relative scaling
     end
-    colorbar('Ticks',valueSet,'TickLabels',keySet)
+    % TODO
+    %colorbar('Ticks',sort(valueSet),'TickLabels',keySet)
     %% Add key for cars and other objects
     title('World Plot of Cars');
 end
