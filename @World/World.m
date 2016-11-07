@@ -29,6 +29,10 @@ classdef World
 		
 		function this = addObject(this, object)
 			%% TODO: check to make sure x and y are within bounds!!!
+            if object.state.x<1 || object.state.y<1 || object.state.x>this.xLength || object.state.y>this.yLength
+                disp('error. object to be added is out of bounds.');
+                return;
+            end
             if isempty(this.objects{object.state.x,object.state.y}) 
                 this.objects(object.state.x,object.state.y) = {object};
             else
