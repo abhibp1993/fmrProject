@@ -1,11 +1,19 @@
 % Author: Andy & Ari
 % Last Modified: 6th Nov 2016
 
-classdef TrafficSign < StateMachine
+%% Question/Comment (abhibp1993):  
+% As per my understanding, TrafficSign will not be State Machine, 
+% because it doesn't evolve with time or anything. It is static. 
+
+% Modified by (abhibp1993 @ Nov 6, 2016, 10.20PM)
+
+%% Code
+classdef TrafficSign
     
     properties
         id      % unique id of the TrafficSign
         type    % yield 'Yield' or stop sign 'Stop'
+        state   % Patch to maintain the structure of implemented code (abhibp1993)
     end
     
     
@@ -26,18 +34,6 @@ classdef TrafficSign < StateMachine
         function pos = pose(obj)
             pos = [obj.state.x, obj.state.y, obj.state.h];
         end
-        
-        % TODO
-        function obj = step(obj, sensorInput)
-            [nState, act] = obj.transition(obj.state, sensorInput);
-            
-            obj.state = nState;
-            obj = action(obj, act);
-        end
-        
-       function nState = transition(obj, state, sensorInput)
-            
-       end
         
         
         function [] = print(obj)

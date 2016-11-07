@@ -1,10 +1,22 @@
-% Author: Andy & Ari
+% Author: Andy & Ari & Abhishek 
 % Last Modified: 6th Nov 2016
 
-classdef Road < StateMachine
+%% Question/Comment (abhibp1993): I do not clearly understand this definition. 
+% As per my understanding, Road will not be State Machine, 
+% because it doesn't evolve with time or anything. It is static. 
+% The utility of this entity in planning is for higher level path planning. 
+% Also, the lanes that compose a road provide information about adjacency
+% of Lanes, which in turn could be used to define the specifications for
+% online-behavior based motion planning. 
+
+% Modified by (abhibp1993 @ Nov 6, 2016, 9.47PM)
+
+%% Code: 1
+classdef Road 
 	
 	properties
 		id      % unique id of the TrafficSign
+        state   % Patch to maintain the structure. (modified by abhibp1993)
 	end
 	
 	
@@ -19,13 +31,6 @@ classdef Road < StateMachine
 		function pos = position(obj)
 			pos = [obj.state.x, obj.state.y];
 		end
-		
-		function obj = step(obj, sensorInput)
-		end
-		
-		function nState = transition(obj, state, sensorInput)
-		end
-		
 		
 		function [] = print(obj)
 			fprintf('Road id = %d, X = %d, Y = %d', obj.id, obj.state.x, obj.state.y);
