@@ -31,7 +31,6 @@ classdef TrafficLight < StateMachine
             [nState] = obj.transition(obj.state, sensorInput);
             
             obj.state = nState;
-            obj = action(obj, act);
         end
         
         function nState = transition(obj, state, sensorInput)

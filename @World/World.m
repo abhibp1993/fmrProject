@@ -1,3 +1,4 @@
+% Last modified: 6 Nov 2016
 % this is a class used for generate a world.
 % xLength: the number of cell in the horizontal direction.
 % yLength: the number of cell in the vertical direction.
@@ -27,30 +28,44 @@ classdef World
 			end
 		end
 		
-		function this = addObject(this, object)
-			%% TODO: check to make sure x and y are within bounds!!!
-            if object.state.x<1 || object.state.y<1 || object.state.x>this.xLength || object.state.y>this.yLength
-                disp('error. object to be added is out of bounds.');
-                return;
-            end
-            if isempty(this.objects{object.state.x,object.state.y}) 
-                this.objects(object.state.x,object.state.y) = {object};
-            else
-                this.objects(object.state.x,object.state.y) = {{this.objects{object.state.x, object.state.y} , object}};
-            end
-		end
-		
-		function W = stepWorld(W)
-			for i = 1:length(W.objects)
-				W.objects(i).step();
+		function this = removeObject(this, i,j,k)
+			if(length(this.objects{i,j}) ==1)
+				this.objects{i,j} = [];
+			else
+				this.objects{i,j}(k) = [];
 			end
 		end
 		
-		function result = checkAP(this, x,y,AP)
-			result = AP(this.object{x,y});
+		function this = addObject(this, object)
+			%% TODO: check to make sure x and y are within bounds!!!
+			if isempty(this.objects{object.state.x,object.state.y})
+				this.objects(object.state.x,object.state.y) = {object};
+			else
+				this.objects(object.state.x,object.state.y) = {{this.objects{object.state.x, object.state.y} , object}};
+			end
+		end
+		
+		function W = stepWorld(W)
+			nW = W;
+			for i = 1:size(W.objects,1)
+				for j = 1:size(W.objects,2)
+					for k = 1:length(W.objects{i,j})
+						if k
+							nW.removeObject(i,j,k);
+							W.objects{i,j}{k}.step(1);
+							nW.addObject(W.objects{i,j}{k});
+						end
+					end
+				end
+			end
+			W = nW;
+		end
+			
+			function result = checkAP(this, x,y,AP)
+				result = AP(this.object{x,y});
+			end
+		end
+		methods
+			plotWorld(obj)
 		end
 	end
-	methods
-		plotWorld(obj)
-	end
-end

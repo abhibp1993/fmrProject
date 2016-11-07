@@ -14,12 +14,12 @@ classdef SDC < Car
             % Implements trivial controller, where speed is given by
             % sensorInput!
             
-            act = 'left';
+            act = 'straight';
             
-            nState.x = state.x;
-            nState.y = state.y;
-            nState.h = state.h;
-            nState.speed = sensorInput;
+            nState.x = obj.state.x;
+            nState.y = obj.state.y;
+            nState.h = obj.state.h;
+            nState.speed = obj.state.speed;
         end
         
     end
