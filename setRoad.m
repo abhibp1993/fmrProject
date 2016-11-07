@@ -1,4 +1,5 @@
-% 6 Nov 2016 by Andy
+% Author: Andy Xu
+% Last Modified: 6 Nov 2016
 % setRoad(w, s,e) is a function to generate a road between start point s and
 % end point e, in World w.
 % The output is the world containing the road.
