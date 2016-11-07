@@ -1,4 +1,4 @@
-% Author: Andy & Ari
+% Author: Andy & Ari & Abhishek 
 % Last Modified: 6th Nov 2016
 
 %% Question/Comment (abhibp1993):  
@@ -34,7 +34,6 @@ classdef TrafficSign
         function pos = pose(obj)
             pos = [obj.state.x, obj.state.y, obj.state.h];
         end
-        
         
         function [] = print(obj)
             fprintf('TrafficSign id = %d, X = %d, Y = %d, h =%d, type=%d\n', obj.id, obj.state.x, obj.state.y, obj.state.h, obj.type);
