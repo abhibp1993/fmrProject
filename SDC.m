@@ -8,6 +8,7 @@ classdef SDC < Car
         
         function obj = SDC(id, x, y, h, speed)
             obj = obj@Car(id, x, y, h, speed);
+            obj.senseMask = ones(5);
         end
         
         function [nState, act] = transition(obj, state, sensorInput)

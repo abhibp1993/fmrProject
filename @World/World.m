@@ -32,7 +32,7 @@ classdef World
 			if(length(this.objects{i,j}) ==1)
 				this.objects{i,j} = [];
 			else
-				this.objects{i,j}(k) = [];
+				this.objects{i,j} = [];
 			end
 		end
 		
@@ -49,13 +49,17 @@ classdef World
 			nW = W;
 			for i = 1:size(W.objects,1)
 				for j = 1:size(W.objects,2)
-					for k = 1:length(W.objects{i,j})
-						if k
-							nW.removeObject(i,j,k);
-							W.objects{i,j}{k}.step(1);
-							nW.addObject(W.objects{i,j}{k});
-						end
-					end
+                   if length(W.objects{i,j}) > 1
+                       for k = 1:length(W.objects{i,j})
+                            nW.removeObject(i,j,k);
+                            W.objects{i,j}{k}.step(1);
+                            nW.addObject(W.objects{i,j}{k});
+                       end
+                   elseif length(W.objects{i,j}) == 1
+                       nW = nW.removeObject(i,j,0);
+                       obj = W.objects{i,j}.step(1);
+                       nW = nW.addObject(obj);
+                   end
 				end
 			end
 			W = nW;

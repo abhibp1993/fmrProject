@@ -35,12 +35,12 @@ classdef TrafficLight < StateMachine
         
         function nState = transition(obj, state, sensorInput)
             nState = state;
-            if state.light == 'RED'
+            if strcmp(state.light, 'RED')
                 nState.light = 'GREEN';
-            elseif state.light == 'YELLOW'
+            elseif strcmp(state.light, 'YELLOW')
                 nState.light = 'RED';
             else
-                nState.light = 'YELLOW';
+                nState.light = 'YELLOW'; %TODO ERROR
             end
         end
         

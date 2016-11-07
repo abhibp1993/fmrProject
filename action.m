@@ -14,11 +14,11 @@ function [ car ] = action( car, act )
     act = lower(act);
 
     % Wrapper around actions
-    if isequal(act, 'straight')
+    if strcmp(act, 'straight')
         car = goStraight(car, car.state.speed);
-    elseif isequal(act, 'left')
+    elseif strcmp(act, 'left')
         car = turnLeft(car);
-    elseif isequal(act, 'right')
+    elseif strcmp(act, 'right')
         car = turnRight(car);
     end
 
@@ -38,7 +38,9 @@ function car = goStraight(car, stepSize)
 
     elseif car.state.h == Orientation.east
         car.state.x = car.state.x + stepSize;
-            
+    
+    elseif car.state.h == 1 %TODO: FIX ALL ORIENTATIONS
+        car.state.x = car.state.x - stepSize;
     end
     
 end
