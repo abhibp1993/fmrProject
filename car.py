@@ -9,7 +9,7 @@ WEST  = 'west'
 
 # Possible Actions:
 def stop(state):
-    pass
+    return state
 
 def goStraight(state):
     pass
@@ -82,6 +82,7 @@ class Car(sm.SM):
         nState = self.act(action, state)    # returns [x, y, dir, speed]
 
         return [nState, None]
+
 
 class SDC(sm.SM):
     MOVE = 'move'
@@ -178,6 +179,7 @@ class SDC(sm.SM):
         return False
 
 
+'''
 # class Car1(sm.SM):
 #
 #     actions = ['follow', 'changeLeft', 'changeRight', 'turnRight', 'turnLeft', 'uTurn', 'wait']
@@ -244,3 +246,4 @@ class SDC(sm.SM):
 #         """
 #         idx = plan.index(currEdge)
 #         return plan[idx+1]
+'''
