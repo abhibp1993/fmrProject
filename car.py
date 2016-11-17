@@ -50,6 +50,14 @@ class Car(sm.SM):
         return list()
 
     def act(self, action, state):
+        """
+        Applies the action to state to generate a new state.
+        Note: No validitiy checking of action is done. So output state may be out of bounds of map.
+
+        :param action: function pointer.
+        :param state: [x, y, dir, speed]
+        :return: new state [x, y, dir, speed]
+        """
         return action(state)
 
     def seeWorld(self, grid, location):
@@ -60,7 +68,12 @@ class Car(sm.SM):
         @param location: valid cell in Grid.
         @return: Dictionary of key=cell, value=label of that cell
         """
-        return dict()
+        keys = [[i, j] for i in range(-2, 3) for j in range(-2, 3)]
+        vision = dict()
+        vision.keys().append(keys)
+
+        
+        return vision
 
     def getNextValues(self, state, inp):
 
@@ -96,7 +109,7 @@ class SDC(sm.SM):
         Instantiates the Self-driving car behavior.
         """
         # Start state of car (behavior)
-        self.startState = [Car.WAIT, None, 0]   # state = [Mode, Edge (of route), waitTime]
+        self.startState = [SDC.WAIT, None, 0]   # state = [Mode, Edge (of route), waitTime]
 
         # Route of Car = Desired top-level behavior
         self.route = None
@@ -115,50 +128,50 @@ class SDC(sm.SM):
 
         # Wait Behavior
         if self.route is None:
-            return [[mode, 0], stop]
+            return [[mode, edge, 0], stop]
 
-        if mode == Car.WAIT:
+        if mode == SDC.WAIT:
             action = self.action(edge, inp[1])  # inp[1] = grid world
             if action is not None:
-                mode = Car.MOVE
+                mode = SDC.MOVE
                 waitTime = 0
-                return [[mode, waitTime], action]
+                return [[mode, edge, waitTime], action]
             else:
-                return [[state, waitTime+1], stop]
+                return [[state, edge, waitTime+1], stop]
 
         # Move Behavior
-        if mode == Car.MOVE and not self.nextCellStopSign(inp):
-            action = self.action(inp)
+        if mode == SDC.MOVE and not self.nextCellStopSign(inp):
+            action = self.action(edge, inp)
             if action is not None:
-                return [[mode, 0], action]
+                return [[mode, edge, 0], action]
             else:
-                mode = Car.WAIT
-                return [[mode, 0], stop]
+                mode = SDC.WAIT
+                return [[mode, edge, 0], stop]
 
-        elif mode == Car.MOVE: # and stop sign is in next cell
-            mode = Car.STOP_SIGN
-            return [[mode, 0], stop]
+        elif mode == SDC.MOVE: # and stop sign is in next cell
+            mode = SDC.STOP_SIGN
+            return [[mode, edge, 0], stop]
 
         # Stop-Sign Behavior
-        if mode == Car.STOP_SIGN and self.isIntersectionClear(inp):
-            action = self.action(inp)
+        if mode == SDC.STOP_SIGN and self.isIntersectionClear(inp):
+            action = self.action(edge, inp)
             if action is not None:
-                return [[mode, 0], action]
+                return [[mode, edge, 0], action]
             else:
-                mode = Car.WAIT
-                return [[mode, 0], stop]
+                mode = SDC.WAIT
+                return [[mode, edge, 0], stop]
 
-        elif mode == Car.STOP_SIGN:
-            return [[mode, 0], stop]
+        elif mode == SDC.STOP_SIGN:
+            return [[mode, edge, 0], stop]
 
-    def action(self, inp):
+    def action(self, edge, inp):
         """
         Computes desired action based on path-plan and observable-world.
 
         :param inp: list of observable cells of world
         :return: function pointer to suitable action.
         """
-        return list()
+        return goStraight
 
     def nextCellStopSign(self, inp):
         """
@@ -176,7 +189,7 @@ class SDC(sm.SM):
         :param inp: list of observable cells
         :return: Boolean
         """
-        return False
+        return True
 
 
 '''

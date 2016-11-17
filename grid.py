@@ -52,8 +52,14 @@ class Grid(object):
         if cell in self.AP[Grid.ROAD]:
             self.AP[Grid.STOP].append(cell)
 
-    def slice(self, rect):
-        pass
+    def label(self, cell):
+        label = []
+        for k in self.AP.keys():
+            if cell in self.AP[k]:
+                label.append(k)
+
+        return label
+
 
     def __str__(self):
         return str(self.AP)

@@ -166,15 +166,16 @@ def edgify(G, nList):
     return eList
 
 
-n1 = Node('n1', [1, 1])
-n2 = Node('n2', [2, 2])
-V = [n1, n2]
+if __name__ == '__main':
+    n1 = Node('n1', [1, 1])
+    n2 = Node('n2', [2, 2])
+    V = [n1, n2]
 
-e = Edge(n1, n2, [[1, 1], [1, 2], [2, 2], [2, 3]])
-E = [e]
+    e = Edge(n1, n2, [[1, 1], [1, 2], [2, 2], [2, 3]])
+    E = [e]
 
-G = Graph(V, E)
+    G = Graph(V, E)
 
-path = aStar(G, n1, n2)
-edge = edgify(G, path)
-for e in edge: print e
+    path = aStar(G, n1, n2)
+    edge = edgify(G, path)
+    for e in edge: print e
