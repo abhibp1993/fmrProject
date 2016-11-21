@@ -1,5 +1,6 @@
 import graphds
 import sm
+import math
 
 NORTH = 'north'
 SOUTH = 'south'
@@ -12,7 +13,8 @@ def stop(state):
     return state
 
 def goStraight(state):
-    pass
+    state(1) += math.sin()
+
 
 def turnLeft(state):
     pass
