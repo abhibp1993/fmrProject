@@ -1,19 +1,20 @@
 import graphds
 import sm
-import math
+from math import sin, cos
 
 NORTH = 'north'
 SOUTH = 'south'
 EAST  = 'east'
 WEST  = 'west'
 
+# state: x, y, direction, speed
 
 # Possible Actions:
 def stop(state):
     return state
 
 def goStraight(state):
-    state(1) += math.sin()
+    state(1) += cos(state(3)) * state(4)
 
 
 def turnLeft(state):
@@ -192,6 +193,20 @@ class SDC(sm.SM):
         :return: Boolean
         """
         return True
+
+    def checkSafeAction(self, localMap, Enemies):
+        for Enemy in Enemies:
+            tempEnemy = Enemies(Enemy)
+            tempEnemy.state(1) += cos
+            tempEnemy.state(2) += sin
+
+            if Enemies(Enemy) within the moving range
+
+            elif tempEnemy within the moving range
+
+        return
+
+
 
 
 '''
