@@ -62,11 +62,11 @@ class World(nx.DiGraph):
 
         # List all possible action
         actions = list()
-        actions.append(lambda cell: (cell[0]+1, cell[1]))         # east
+        actions.append(lambda cell: (cell[0]+1, cell[1]))           # east
         actions.append(lambda cell: (cell[0]+1, cell[1]+1))         # ne
         actions.append(lambda cell: (cell[0]  , cell[1]+1))         # north
-        actions.append(lambda cell: (cell[0]-1, cell[1]+1))      # nw
-        actions.append(lambda cell: (cell[0]-1, cell[1]))         # west
+        actions.append(lambda cell: (cell[0]-1, cell[1]+1))         # nw
+        actions.append(lambda cell: (cell[0]-1, cell[1]))           # west
         actions.append(lambda cell: (cell[0]-1, cell[1]-1))         # sw
         actions.append(lambda cell: (cell[0]  , cell[1]-1))         # south
         actions.append(lambda cell: (cell[0]+1, cell[1]-1))         # se
@@ -94,7 +94,7 @@ class World(nx.DiGraph):
                 elif n[2] == EAST and idx == 2: newNode = (newCell, self.isGrass(newCell), NORTH)
 
                 try:
-                    self.add_edge(n, newNode)
+                    self.add_edge(n, newNode, weight=idx)
                 except:
                     pass
 
@@ -118,11 +118,17 @@ class Car(sm.SM):
 
         print self.route
 
-    def getDesiredAction(self, currPosition, goalPosition):
-        # Get all possible actions
+    def getNextValues(self, state, inp):
+        """
 
-        # Compute least cost path to next destination
-        pass
+        :param state:
+        :param inp:
+        :return:
+        """
+        # Get next action
+        nextDesiredAction = self.route.pop(0)
+
+        #
 
 
 
