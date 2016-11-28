@@ -18,10 +18,10 @@ ACT_NE = lambda cell: (cell[0]+1, cell[1]+1)
 ACT_NW = lambda cell: (cell[0]-1, cell[1]+1)
 ACTIONS = [ACT_NORTH, ACT_WEST, ACT_NE, ACT_EAST, ACT_NW]
 
-NORTH = 0
-EAST = 3
-WEST = 1
-SOUTH = 2
+NORTH = 1
+EAST = 0
+WEST = 2
+SOUTH = 3
 
 # Node: (location as 2-tuple, label)
 
@@ -35,7 +35,8 @@ class World(nx.DiGraph):
         self._graphify()
 
     def __contains__(self, cell):
-        return cell in self.nodes()
+        cells = [i[0] for i in self.nodes()]
+        return cell in cells
 
     def _createGrid(self):
         grid = list()
@@ -46,27 +47,56 @@ class World(nx.DiGraph):
         print len(grid), grid[1]
         return grid
 
+    def isGrass(self, cell):
+        for i in self.nodes():
+            if i[0] == cell:
+                return i[1]
+
     def _graphify(self):
+        # Generate all nodes
         for cell in self.grid:
-            self.add_node((cell, NORTH))
-            self.add_node((cell, EAST))
-            self.add_node((cell, WEST))
-            self.add_node((cell, SOUTH))
+            self.add_node(cell + (NORTH,))
+            self.add_node(cell + (EAST,))
+            self.add_node(cell + (WEST,))
+            self.add_node(cell + (SOUTH,))
 
-        actions = [lambda cell: (cell[0]+1, cell[1]  ),         # east
-                   lambda cell: (cell[0]+1, cell[1]+1),         # ne
-                   lambda cell: (cell[0]  , cell[1]+1),         # north
-                   lambda cell: (cell[0]-1, cell[1]+1),         # nw
-                   lambda cell: (cell[0]-1, cell[1]  ),         # west
-                   lambda cell: (cell[0]-1, cell[1]-1),         # sw
-                   lambda cell: (cell[0]  , cell[1]-1),         # south
-                   lambda cell: (cell[0]+1, cell[1]-1)]         # se
+        # List all possible action
+        actions = list()
+        actions.append(lambda cell: (cell[0]+1, cell[1]))         # east
+        actions.append(lambda cell: (cell[0]+1, cell[1]+1))         # ne
+        actions.append(lambda cell: (cell[0]  , cell[1]+1))         # north
+        actions.append(lambda cell: (cell[0]-1, cell[1]+1))      # nw
+        actions.append(lambda cell: (cell[0]-1, cell[1]))         # west
+        actions.append(lambda cell: (cell[0]-1, cell[1]-1))         # sw
+        actions.append(lambda cell: (cell[0]  , cell[1]-1))         # south
+        actions.append(lambda cell: (cell[0]+1, cell[1]-1))         # se
 
+        # Perform each action on node, and add new edges
         for n in self.nodes():
-            cell, dir = n
-            if dir == NORTH:
-                output = []
+            for act in actions:
+                newCell = act(n[0])
+                if newCell not in self:
+                    continue
 
+                newNode = (newCell, n[1], n[2])
+
+                idx = actions.index(act)
+                if   n[2] == NORTH and idx == 0: newNode = (newCell, self.isGrass(newCell), EAST)
+                elif n[2] == NORTH and idx == 4: newNode = (newCell, self.isGrass(newCell), WEST)
+
+                if   n[2] == WEST and idx == 2: newNode = (newCell, self.isGrass(newCell), NORTH)
+                elif n[2] == WEST and idx == 6: newNode = (newCell, self.isGrass(newCell), SOUTH)
+
+                if   n[2] == SOUTH and idx == 4: newNode = (newCell, self.isGrass(newCell), WEST)
+                elif n[2] == SOUTH and idx == 0: newNode = (newCell, self.isGrass(newCell), EAST)
+
+                if   n[2] == EAST and idx == 6: newNode = (newCell, self.isGrass(newCell), SOUTH)
+                elif n[2] == EAST and idx == 2: newNode = (newCell, self.isGrass(newCell), NORTH)
+
+                try:
+                    self.add_edge(n, newNode)
+                except:
+                    pass
 
     def action(self, cell):
         return [ACT_EAST, ACT_NE, ACT_NORTH, ACT_NW, ACT_WEST]
@@ -77,6 +107,8 @@ class Car(sm.SM):
         """
 
         :param startState: ((x, y), dir, speed)
+        :param world: World object
+        :param goal: 2-tuple
         """
         self.startState = startState
         try:
@@ -85,6 +117,14 @@ class Car(sm.SM):
             self.route = list()
 
         print self.route
+
+    def getDesiredAction(self, currPosition, goalPosition):
+        # Get all possible actions
+
+        # Compute least cost path to next destination
+        pass
+
+
 
 # run stuff
 w = World(dim=5)
