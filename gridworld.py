@@ -23,8 +23,6 @@ EAST = 0
 WEST = 2
 SOUTH = 3
 
-# Node: (location as 2-tuple, label)
-
 
 class World(nx.DiGraph):
     def __init__(self, dim=10):
@@ -112,8 +110,9 @@ class Car(sm.SM):
         """
         self.startState = startState
         try:
-            self.route = nx.shortest_path(world, source=startState[0], target=goal)
-        except:
+            self.route = nx.shortest_path(world, source=startState, target=(goal, GRASS, NORTH))
+        except Exception, e:
+            print e
             self.route = list()
 
         print self.route
@@ -135,7 +134,8 @@ class Car(sm.SM):
 # run stuff
 w = World(dim=5)
 print w.number_of_nodes(), w.number_of_edges()
-c = Car(((0, 0), NORTH, 1), w, (1, 1))
+#print w.nodes()
+c = Car(startState=((0, 0), GRASS, NORTH), world=w, goal=(1, 1))
 
 
 """
