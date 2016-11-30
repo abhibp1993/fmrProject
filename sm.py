@@ -123,7 +123,7 @@ class SM(object):
         return False
 
     def run(self):
-        ### figure our what and how to choose inputs??
+        ### figure out what and how to choose inputs??
 
         # nState = self.startState
         # while not self.done(self.currState):
