@@ -7,27 +7,20 @@ Creates labeled grid with labels for nodes and edges and uses A* to solve.
 
 import networkx as nx
 import sm
+import labeledEdge
 
-NODE_LABELS = namedtuple("NODE_LABELS", "GRASS ROAD OBSTACLE")
-EDGE_LABELS = namedtuble("EDGE_LABELS", "YIELD STOP ILLEGAL")
-
-ACT_EAST = lambda cell: (cell[0]+1, cell[1])
-ACT_NORTH = lambda cell:(cell[0], cell[1]+1)
-ACT_WEST = lambda cell: (cell[0]-1, cell[1])
-ACT_NE = lambda cell: (cell[0]+1, cell[1]+1)
-ACT_NW = lambda cell: (cell[0]-1, cell[1]+1)
-ACTIONS = [ACT_NORTH, ACT_WEST, ACT_NE, ACT_EAST, ACT_NW]
-
-NORTH = 1
 EAST = 0
+NORTH = 1
 WEST = 2
 SOUTH = 3
 
-GRASS = 1
-ROAD = 0
-OBSTACLE = 2
-
-
+ACT_EAST = lambda cell: (cell[0]+1, cell[1])
+ACT_NORTH = lambda cell: (cell[0], cell[1]+1)
+ACT_WEST = lambda cell: (cell[0]-1, cell[1])
+ACT_NE = lambda cell: (cell[0]+1, cell[1]+1)
+ACT_NW = lambda cell: (cell[0]-1, cell[1]+1)
+ACT_WAIT = lambda cell: (cell[0]-1, cell[1])
+ACTIONS = [ACT_NORTH, ACT_WEST, ACT_NE, ACT_EAST, ACT_NW, ACT_WAIT]
 
 class World(nx.DiGraph):
     def __init__(self, dim=10):
@@ -37,16 +30,14 @@ class World(nx.DiGraph):
         self._graphify()
 
     def __contains__(self, cell):
-        cells = [i[0] for i in self.nodes()]
+        cells = [i[0:2] for i in self.nodes()]
         return cell in cells
 
     def _createGrid(self):
         grid = list()
         for i in range(self.dim):
             for j in range(self.dim):
-                grid.append(((i, j), GRASS))
-
-        print len(grid), grid[1]
+                grid.append((i, j))
         return grid
 
     def _graphify(self):
@@ -57,8 +48,11 @@ class World(nx.DiGraph):
             self.add_node(cell + (WEST,))
             self.add_node(cell + (SOUTH,))
 
+        print self.nodes()
         # List all possible action
         actions = list()
+        #print (cell[0]+1, cell[1])
+
         actions.append(lambda cell: (cell[0]+1, cell[1]))           # east
         actions.append(lambda cell: (cell[0]+1, cell[1]+1))         # ne
         actions.append(lambda cell: (cell[0]  , cell[1]+1))         # north
@@ -67,42 +61,46 @@ class World(nx.DiGraph):
         actions.append(lambda cell: (cell[0]-1, cell[1]-1))         # sw
         actions.append(lambda cell: (cell[0]  , cell[1]-1))         # south
         actions.append(lambda cell: (cell[0]+1, cell[1]-1))         # se
+        actions.append(lambda cell: (cell[0]  , cell[1]))           # wait
 
         # Perform each action on node, and add new edges
         for n in self.nodes():
             for act in actions:
-                newCell = act(n[0])
+                newCell = act(n[0:2])
                 if newCell not in self:
                     continue
 
-                newNode = (newCell, n[1], n[2])
+                newNode = (newCell) + (n[1],)
 
                 idx = actions.index(act)
-                if   n[2] == NORTH and idx == 0: newNode = (newCell, GRASS, EAST)
-                elif n[2] == NORTH and idx == 4: newNode = (newCell, GRASS, WEST)
+                if   n[1] == NORTH and idx == 0: newNode = (newCell) + (EAST,)
+                elif n[1] == NORTH and idx == 4: newNode = (newCell) + (WEST,)
 
-                if   n[2] == WEST and idx == 2: newNode = (newCell, GRASS, NORTH)
-                elif n[2] == WEST and idx == 6: newNode = (newCell, GRASS, SOUTH)
+                if   n[1] == WEST and idx == 2: newNode = (newCell) + (NORTH,)
+                elif n[1] == WEST and idx == 6: newNode = (newCell) + (SOUTH,)
 
-                if   n[2] == SOUTH and idx == 4: newNode = (newCell, GRASS, WEST)
-                elif n[2] == SOUTH and idx == 0: newNode = (newCell, GRASS, EAST)
+                if   n[1] == SOUTH and idx == 4: newNode = (newCell) + (WEST,)
+                elif n[1] == SOUTH and idx == 0: newNode = (newCell) + (EAST,)
 
-                if   n[2] == EAST and idx == 6: newNode = (newCell, GRASS, SOUTH)
-                elif n[2] == EAST and idx == 2: newNode = (newCell, GRASS, NORTH)
+                if   n[1] == EAST and idx == 6: newNode = (newCell) + (SOUTH,)
+                elif n[1] == EAST and idx == 2: newNode = (newCell) + (NORTH,)
+
+                if idx == 8: newNode = newCell + (n[1],)
+
+                defaultEdgeWeights = labeledEdge.LabeledEdges()
 
                 try:
-                    self.add_edge(n, newNode, weight=idx+(EDGE_LABELS),)
-                except:
-                    pass
+                    self.add_edge(n, newNode, weight=[idx, defaultEdgeWeights])
+                except Exception, e:
+                    print e
 
     def action(self, cell):
         return [ACT_EAST, ACT_NE, ACT_NORTH, ACT_NW, ACT_WEST]
 
-#TODO
 class Car(sm.SM):
     def __init__(self, startState, world, goal):
         """
-        :param startState: ((x, y), dir, speed)
+        :param startState: ((x, y), dir)
         :param world: World object
         :param goal: 2-tuple
         """
@@ -124,16 +122,13 @@ class Car(sm.SM):
         # Get next action
         nextDesiredAction = self.route.pop(0)
 
-        #
-
-
 
 # run stuff
-w = World(dim=5)
+w = World(dim=1)
 print w.number_of_nodes(), w.number_of_edges()
-#print w.nodes()
-c = Car(startState=((0, 0), GRASS, NORTH), world=w, goal=(1, 1))
-
+print w.neighbors((0,0,EAST))
+print w.edges()
+c = Car(startState=(0, 0, EAST), world=w, goal=(0, 0, SOUTH))
 
 """
 test cases:
