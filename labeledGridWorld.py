@@ -1,14 +1,15 @@
 """
-Author: Abhishek Kulkarni
-Modified: November 14, 2016
-Implements basic data structures world.
+Author: Ari Goodman, Abhishek Kulkarni
+Modified: November 30, 2016
+
+Creates labeled grid with labels for nodes and edges and uses A* to solve.
 """
 
 import networkx as nx
 import sm
 
-GRASS = 0
-ROAD = 1
+NODE_LABELS = namedtuple("NODE_LABELS", "GRASS ROAD OBSTACLE")
+EDGE_LABELS = namedtuble("EDGE_LABELS", "YIELD STOP ILLEGAL")
 
 ACT_EAST = lambda cell: (cell[0]+1, cell[1])
 ACT_NORTH = lambda cell:(cell[0], cell[1]+1)
@@ -22,11 +23,15 @@ EAST = 0
 WEST = 2
 SOUTH = 3
 
+GRASS = 1
+ROAD = 0
+OBSTACLE = 2
+
+
 
 class World(nx.DiGraph):
     def __init__(self, dim=10):
         super(World, self).__init__()
-
         self.dim = dim
         self.grid = self._createGrid()
         self._graphify()
@@ -43,11 +48,6 @@ class World(nx.DiGraph):
 
         print len(grid), grid[1]
         return grid
-
-    def isGrass(self, cell):
-        for i in self.nodes():
-            if i[0] == cell:
-                return i[1]
 
     def _graphify(self):
         # Generate all nodes
@@ -78,27 +78,27 @@ class World(nx.DiGraph):
                 newNode = (newCell, n[1], n[2])
 
                 idx = actions.index(act)
-                if   n[2] == NORTH and idx == 0: newNode = (newCell, self.isGrass(newCell), EAST)
-                elif n[2] == NORTH and idx == 4: newNode = (newCell, self.isGrass(newCell), WEST)
+                if   n[2] == NORTH and idx == 0: newNode = (newCell, GRASS, EAST)
+                elif n[2] == NORTH and idx == 4: newNode = (newCell, GRASS, WEST)
 
-                if   n[2] == WEST and idx == 2: newNode = (newCell, self.isGrass(newCell), NORTH)
-                elif n[2] == WEST and idx == 6: newNode = (newCell, self.isGrass(newCell), SOUTH)
+                if   n[2] == WEST and idx == 2: newNode = (newCell, GRASS, NORTH)
+                elif n[2] == WEST and idx == 6: newNode = (newCell, GRASS, SOUTH)
 
-                if   n[2] == SOUTH and idx == 4: newNode = (newCell, self.isGrass(newCell), WEST)
-                elif n[2] == SOUTH and idx == 0: newNode = (newCell, self.isGrass(newCell), EAST)
+                if   n[2] == SOUTH and idx == 4: newNode = (newCell, GRASS, WEST)
+                elif n[2] == SOUTH and idx == 0: newNode = (newCell, GRASS, EAST)
 
-                if   n[2] == EAST and idx == 6: newNode = (newCell, self.isGrass(newCell), SOUTH)
-                elif n[2] == EAST and idx == 2: newNode = (newCell, self.isGrass(newCell), NORTH)
+                if   n[2] == EAST and idx == 6: newNode = (newCell, GRASS, SOUTH)
+                elif n[2] == EAST and idx == 2: newNode = (newCell, GRASS, NORTH)
 
                 try:
-                    self.add_edge(n, newNode, weight=idx)
+                    self.add_edge(n, newNode, weight=idx+(EDGE_LABELS),)
                 except:
                     pass
 
     def action(self, cell):
         return [ACT_EAST, ACT_NE, ACT_NORTH, ACT_NW, ACT_WEST]
 
-
+#TODO
 class Car(sm.SM):
     def __init__(self, startState, world, goal):
         """
@@ -108,7 +108,7 @@ class Car(sm.SM):
         """
         self.startState = startState
         try:
-            self.route = nx.shortest_path(world, source=startState, target=(goal, GRASS, NORTH))
+            self.route = nx.shortest_path(world, source=startState, target=goal)
         except Exception, e:
             print e
             self.route = list()
