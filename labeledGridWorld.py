@@ -32,6 +32,17 @@ class World(nx.DiGraph):
                 grid.append((i, j))
         return grid
 
+    def _bmpToFlags(self, bmp_data, flag):
+        assert len(bmp_data) == self.dim, "size is incorrect"
+        assert len(bmp_data[0]) == self.dim, "size is incorrect"
+        for edge in self.edges():
+            endNode = edge[1]
+            weights = self.get_edge_data(edge[0],edge[1])["weight"]
+            weights[flag] = bmp_data[endNode[0]][endNode[1]]
+            self[edge[0]][edge[1]]["data"] = weights
+
+        pass
+
     def _graphify(self):
         # Generate all nodes
         for cell in self.grid:
@@ -40,10 +51,8 @@ class World(nx.DiGraph):
             self.add_node(cell + (WEST,))
             self.add_node(cell + (SOUTH,))
 
-        #print self.nodes()
         # List all possible action
         actions = list()
-        #print (cell[0]+1, cell[1])
         direction = [1, 0, -1, 0]
         cos = lambda x: direction[x]
         sin = lambda x: direction[(3+x) % 4]
@@ -61,8 +70,6 @@ class World(nx.DiGraph):
         # Perform each action on node, and add new edges
         for n in self.nodes():
             for act in actions:
-               # print n
-
                 newCell = act(n)
                 if newCell not in self:
                     continue
@@ -91,10 +98,8 @@ class Car(sm.SM):
         except Exception, e:
             print e
             self.route = list()
-
         print self.route
     def getCost(self, weights, values):
-        print weights
         assert len(weights) == len(values), "Length of values not equal to length of weights!"
         assert False in [i<0 for i in values], "Values should be strictly non negative"
         tempCost = 0
@@ -113,4 +118,9 @@ class Car(sm.SM):
 
 # run stuff
 w = World(dim=5)
+w._bmpToFlags([[0, 1, 0, 1, 1],[0, 1, 0, 0, 0],[0, 1, 0,1 ,1],[0, 1, 0,1 ,1],[0, 1, 0,1 ,1]],3)
 c = Car(startState=(1, 1, NORTH), world=w, goal=(4, 0, SOUTH), values=[1]*7)
+
+for edge in w.edges():
+    print w.get_edge_data(edge[0],edge[1])["weight"]
+
