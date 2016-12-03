@@ -8,6 +8,8 @@ Creates labeled grid with labels for nodes and edges and uses A* to solve.
 import networkx as nx
 import sm
 import labeledEdge
+from PIL import Image
+import numpy as np
 
 EAST = 0
 NORTH = 1
@@ -80,6 +82,17 @@ class World(nx.DiGraph):
                 except Exception, e:
                     print e
 
+    def extractBmpData(self, bmp):
+        im = Image.open(bmp, 'r')
+        pix_val=list(im.getdata())
+        for pix in range(0,len(pix_val)):
+            if pix_val[pix] > 0:
+                pix_val[pix] = 0
+            else:
+                pix_val[pix] = 1
+        print pix_val
+        return np.reshape(np.array(pix_val), im.size)
+
 class Car(sm.SM):
     def __init__(self, startState, world, goal, values):
         """
@@ -116,10 +129,12 @@ class Car(sm.SM):
         nextDesiredAction = self.route.pop(0)
 
 # run stuff
-w = World(dim=5)
-w._bmpToFlags([[0, 1, 0, 1, 1],[0, 1, 0, 0, 0],[0, 1, 0,1 ,1],[0, 1, 0,1 ,1],[0, 1, 0,1 ,1]],3)
-c = Car(startState=(1, 1, NORTH), world=w, goal=(4, 0, SOUTH), values=[1]*7)
+w = World(dim=3)
+#w._bmpToFlags([[0, 1, 0, 1, 1],[0, 1, 0, 0, 0],[0, 1, 0,1 ,1],[0, 1, 0,1 ,1],[0, 1, 0,1 ,1]],3)
+#c = Car(startState=(1, 1, NORTH), world=w, goal=(4, 0, SOUTH), values=[1]*7)
 
-for edge in w.edges():
-    print w.get_edge_data(edge[0],edge[1])["weight"]
+w._bmpToFlags(w.extractBmpData('test.bmp'),3)
+
+#for edge in w.edges():
+#    print w.get_edge_data(edge[0],edge[1])["weight"]
 
