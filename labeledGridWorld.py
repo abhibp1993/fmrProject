@@ -100,8 +100,9 @@ class Car(sm.SM):
             self.route = list()
         print self.route
     def getCost(self, weights, values):
-        assert len(weights) == len(values), "Length of values not equal to length of weights!"
+        assert len(weights) == len(values), "Length of values not equal to length of weights"
         assert False in [i<0 for i in values], "Values should be strictly non negative"
+        assert values[0] >= 1, "For A* to work, this weight must be atleast 1"
         tempCost = 0
         for i in range(len(weights)):
             tempCost = tempCost + weights[i]*values[i]
