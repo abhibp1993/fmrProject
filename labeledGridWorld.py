@@ -41,8 +41,6 @@ class World(nx.DiGraph):
             weights[flag] = bmp_data[endNode[0]][endNode[1]]
             self[edge[0]][edge[1]]["data"] = weights
 
-        pass
-
     def _graphify(self):
         # Generate all nodes
         for cell in self.grid:
