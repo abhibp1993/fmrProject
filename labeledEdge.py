@@ -9,4 +9,4 @@ class LabeledEdges:
         self.obstacle = data[3]
         self.road = data[4]
         self.grass = data[5]
-        self.values = [self.yieldSign, self.stopSign, self.illegal, self.obstacle, self.road, self.grass]
+        self.values = [self.yieldSign, self.stopSign, self.ill  egal, self.obstacle, self.road, self.grass]
