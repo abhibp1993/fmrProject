@@ -43,7 +43,7 @@ class World(nx.DiGraph):
         for edge in self.edges():
             endNode = edge[1]
             weights = self.get_edge_data(edge[0], edge[1])["weight"]
-            weights[flag] = bmp_data[endNode[0]][endNode[1]]
+            weights[flag] = bool(bmp_data[endNode[0]][endNode[1]])
             self[edge[0]][edge[1]]["data"] = weights
 
     def _graphify(self):
@@ -138,12 +138,12 @@ class Car(sm.SM):
 
 
 # run stuff
-w = World(dim=3)
+w = World(dim=5)
 # w._bmpToFlags([[0, 1, 0, 1, 1],[0, 1, 0, 0, 0],[0, 1, 0,1 ,1],[0, 1, 0,1 ,1],[0, 1, 0,1 ,1]],3)
 # c = Car(startState=(1, 1, NORTH), world=w, goal=(4, 0, SOUTH), values=[1]*7)
 
 # Rembmer: for the bmp, 0 is black, 1 is white
-w._bmpToFlags(w.extractBmpData('test.bmp'), 3)
+w._bmpToFlags(w.extractBmpData('road.bmp'), 4)
 
-# for edge in w.edges():
-#    print w.get_edge_data(edge[0],edge[1])["weight"]
+for edge in w.edges():
+    print w.get_edge_data(edge[0],edge[1])["weight"]
