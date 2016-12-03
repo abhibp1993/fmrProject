@@ -11,13 +11,13 @@ import labeledEdge
 from PIL import Image
 import numpy as np
 
-EAST = 0
-NORTH = 1
-WEST = 2
-SOUTH = 3
-
 
 class World(nx.DiGraph):
+    EAST = 0
+    NORTH = 1
+    WEST = 2
+    SOUTH = 3
+
     def __init__(self, dim=10):
         super(World, self).__init__()
         self.dim = dim
@@ -35,7 +35,7 @@ class World(nx.DiGraph):
                 grid.append((i, j))
         return grid
 
-    def _bmpToFlags(self, bmp_data, flag):
+    def bmpToFlags(self, bmp_data, flag):
         # flag: indicates which property of the land we are going to assign.
         # bmp_data: indicates
         assert len(bmp_data) == self.dim, "size is incorrect"
@@ -49,10 +49,10 @@ class World(nx.DiGraph):
     def _graphify(self):
         # Generate all nodes
         for cell in self.grid:
-            self.add_node(cell + (NORTH,))
-            self.add_node(cell + (EAST,))
-            self.add_node(cell + (WEST,))
-            self.add_node(cell + (SOUTH,))
+            self.add_node(cell + (World.NORTH,))
+            self.add_node(cell + (World.EAST,))
+            self.add_node(cell + (World.WEST,))
+            self.add_node(cell + (World.SOUTH,))
 
         # List all possible action
         actions = list()
@@ -143,7 +143,7 @@ w = World(dim=5)
 # c = Car(startState=(1, 1, NORTH), world=w, goal=(4, 0, SOUTH), values=[1]*7)
 
 # Rembmer: for the bmp, 0 is black, 1 is white
-w._bmpToFlags(w.extractBmpData('road.bmp'), 4)
+w.bmpToFlags(w.extractBmpData('road.bmp'), 4)
 
 for edge in w.edges():
-    print w.get_edge_data(edge[0],edge[1])["weight"]
+    print w.get_edge_data(edge[0], edge[1])["weight"]
