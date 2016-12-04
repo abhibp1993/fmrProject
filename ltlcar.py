@@ -995,44 +995,14 @@ def evaluateFormula(formula, opDict, apDict):
     return formula[0]
 
 
-def testWorld():
-    # Create world
-    w = World(roadMap='road.bmp', dim=5, grassMap='grass.bmp')
-    #print('--Labels--', '\n', np.rot90(w.labelMap))  # Rotation is for visual convenience
-    print('--Grass--', '\n', np.rot90(w.grassMap))
-    # print(w.cell(0), w.cell(28))    # Gives cell given label.
-
-    # Slice world
-    # try:
-    #     print(np.rot90(w.slice((-3, -3), 3)))       # Case1: Out of bounds on lower-left corner
-    # except:
-    #     print('Lower Left Out of Bounds.')
-    #
-    # try:
-    #     print(np.rot90(w.slice((5, 5), 3)))         # Case2: Out of bounds on upper right corner
-    # except:
-    #     print('Upper Right Out of Bounds.')
-
-    # print(np.rot90(w.slice((-2, -2), 3)))           # Case3: Left corner partial view
-    # print(np.rot90(w.slice((0, 0), 3)))             # Case4: Full view
-    # print(np.rot90(w.slice((3, 3), 3)))             # Case3: Right corner partial view
-
-    # Test BMP Parser
-    # print(w._bmpParser('test.bmp'))
-
-    # Extract info
-    print(w.info(20))
-
-
 # TODO: Rigorous Testing!!!
 if __name__ == '__main__':
-    #testWorld()
     actions = [(lambda x: tuple([x[0] + 1, x[1]])),  # Right
                (lambda x: tuple([x[0], x[1] + 1])),  # Up
                (lambda x: tuple([x[0] - 1, x[1]])),  # Left
                (lambda x: tuple([x[0], x[1] - 1]))]  # Down
 
-    w = World(roadMap='road.bmp', dim=5, grassMap='grass.bmp')
+    w = World(roadMap='world55/road.bmp', dim=5, grassMap='world55/grass.bmp')
     w.obsMap[0, 1] = 1
     #print('---Obs---', '\n', np.rot90(w.obsMap))
 
