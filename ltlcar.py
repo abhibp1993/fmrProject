@@ -10,6 +10,11 @@ import numpy as np
 from PIL import Image
 import networkx as nx
 import copy
+import string
+
+# Define Operator Precedences
+opPrec = {'!': 2, '&': 1, '|': 1}  # Operator Precedences
+opDict = {'!': [1, lambda a: not a], '&': [2, lambda a, b: a and b], '|': [2, lambda a, b: a or b]}
 
 
 class NodeAP:
@@ -321,7 +326,7 @@ class Car(sm.SM):
 
         # Behaviors
         self.go2goal = Go2Goal(world=world, actions=self.actions)
-        self.avoidObstacle = AvoidObstacle()
+        self.avoidObstacle = AvoidObstacle(world=world, actions=self.actions)
         self.router = Router(world, goal)
 
         # Initialize state machine
@@ -370,19 +375,19 @@ class Car(sm.SM):
 
         # Check if obstacle is present in view
         myView = self._getViewInfo(inp, visWorld)
-        obs = True in [myView[k].obstacle for k in myView.keys()]
+        obs = [myView[k].obstacle for k in myView.keys()]
 
         # print (np.rot90(visWorld))
         # for k in myView.keys():
         #     print(k, str(myView[k]))
 
         # Select Behavior
-        if obs:
+        if True in obs:
             behavior = Car.AVOID_OBSTACLE
-            action = self.avoidObstacle.step(inp=None)       # inp- suggested step
+            action = self.avoidObstacle.step(inp=(visWorld, state, obs.index(True)))
         else:
             behavior = Car.GO_TO_GOAL
-            action = self.go2goal.step(inp=(state, suggestedMove))             # Pass appropriate input
+            action = self.go2goal.step(inp=(state, suggestedMove))      # inp - current position, suggested step
 
         # Perform action
         nextState = inp.label(action(inp.cell(state)))
@@ -436,9 +441,6 @@ class Go2Goal(sm.SM):
 
             # Make the move
             return state, self.actions[minIdx]
-
-
-
 
 
 # Route Machine
@@ -529,11 +531,179 @@ class Router(sm.SM):
 
 # AvoidObstacle
 class AvoidObstacle(sm.SM):
-    def __init__(self):
+    def __init__(self, world, actions):
+
+        # Define LTL Specification for Obstacle Avoidance
+        self.ap = {'c': lambda x, y: x == y}
+        self.spec = 'G!c'       # c stands for collision
+        self.auto = _automatize(self.spec)
+
+        # Local variables
+        self.world = world
+        self.myActions = actions
+        self.obsAction = [(lambda x: [x[0], x[1]]),
+                          (lambda x: [x[0], x[1]+1]),
+                          (lambda x: [x[0], x[1]-1]),
+                          (lambda x: [x[0]+1, x[1]]),
+                          (lambda x: [x[0]+1, x[1]+1]),
+                          (lambda x: [x[0]+1, x[1]-1]),
+                          (lambda x: [x[0]-1, x[1]]),
+                          (lambda x: [x[0]-1, x[1]+1]),
+                          (lambda x: [x[0]-1, x[1]-1])]
+
+        # Initialize the state machine
         self.initialize()
 
     def getNextValues(self, state, inp):
-        pass
+        """
+        State of machine is nothing. (Using memory to store last actions might prove useful, but currently ignored)
+        Input to machine is observable world slice, and obstacle car location in it (as cell label).
+
+        Assumptions:
+            1. Obstacle car can move to any of its 8-neighbors.
+            2. Game is turn-based with where our car is expected to make its move first.
+            3. Our location in observable world slice is at
+
+        :param state: None
+        :param inp: 3-tuple of (world slice, myCar position, obs-car position)
+        :return: 2-tuple of (None, action)
+        """
+        # Decouple input
+        worldSlice, myCar, obsCar = inp
+
+        # Generate 1-step game graph
+        grf = self._graphifyOneStep(myCar, obsCar)
+        #print('Nodes: ', grf.number_of_nodes(), '\n', 'Edges: ', grf.number_of_edges())
+
+        # Compute product of automata and graph
+        prodAuto = self._prodAutoGraph(self.auto, grf)
+        print('Nodes: ', prodAuto.nodes(), '\n', 'Edges: ', prodAuto.number_of_edges())
+
+        # Setup reachability game for obstacle car
+        F_dash = list(set(prodAuto.nodes()) - set(prodAuto.finalStates))  # Compute the complement set of F for game
+        attrSets = _attractor(grf, F_dash)
+
+        # Return
+        return None, None
+
+    def _graphifyOneStep(self, p1, p2):
+        """
+        Nodes of graph are formatted as ((p1:int, p2:int), turnOfP1:bool)
+        Assumption 1: self.world, self.myActions, self.obsAction are configured properly.
+
+        :param p1: label of cell of player 1 = my SDC
+        :param p2: label of cell of player 2 = obstacle car
+        :return: networkx.DiGraph instance
+        """
+        # Initialize graph, start state
+        grf = nx.DiGraph()
+        startState = ((p1, p2), True)
+        grf.startState = startState
+
+        # Player 1 takes one step
+        reachableSet1 = [self.world.label(act(self.world.cell(p1)))
+                        for act in self.myActions if act(self.world.cell(p1)) in self.world]
+
+        frontier = set()
+        for s in reachableSet1:
+            newState = ((s, p2), False)
+            grf.add_node(newState)
+            grf.add_edge(startState, newState)
+            frontier.add(newState)
+
+        # Player 2 makes a move
+        reachableSet2 = [self.world.label(act(self.world.cell(p2)))
+                        for act in self.obsAction if act(self.world.cell(p2)) in self.world]
+
+        for n in frontier:
+            for s2 in reachableSet2:
+                newState = ((n[0][0], s2), True)
+                grf.add_node(newState)
+                grf.add_edge(n, newState)
+
+        # Return graph
+        return grf
+
+    def _prodAutoGraph(self, automata, graph, verbose=False):
+        """
+        Constructs the product automata of graphAutomata and gameGraph for
+        turn-based zero-sum (?) game.
+
+        Approach is incremental and exhaustive construction, i.e. all possible
+        states are enumerated, with only valid transitions.
+
+        :return: GraphAutomata object.
+        """
+        if verbose:
+            print()
+            print('Constructing Product Automata -----------------')
+
+
+        # Define product automata as graph-automata
+        prodAutomata = GraphAutomata()
+
+        # Initialize start node for the product.
+        prodAutomata.startState = (graph.startState, automata.startState)
+        if verbose: print('\t', 'Start State of prod-Automata: ', prodAutomata.startState)
+
+        # Initialize frontier as queue
+        frontier = [prodAutomata.startState]    # To be used as Queue
+
+        # Loop until frontier is not empty
+        while len(frontier) > 0:
+            # Pop a node off frontier
+            expNode = frontier.pop(0)
+            gameNode, autoNode = expNode
+
+            # Get all edges from node of game-graph
+            gameEdges = graph.edges(gameNode)
+
+            # Get all edges from node of automata
+            autoEdges = automata.edges(autoNode)
+
+            # Loop over each edge of game-graph
+            for gEdge in gameEdges:
+                # Get destination node
+                gDestNode = gEdge[1]
+                p1State, p2State = gDestNode[0]
+
+                # Compute atomic proposition values for node.
+                nodeLabel = dict()
+                for prop in self.ap:
+                    nodeLabel[prop] = self.ap[prop](p1State, p2State)
+
+                # For each edge in automata-graph do
+                for aEdge in autoEdges:
+                    # Evaluate the label of automata (of LTL) edge over this AP set.
+                    aDestNode = aEdge[1]
+                    aEdgeLabel = automata.labelOfEdge(aEdge[0], aEdge[1])
+                    parseLabel = parseFormula(aEdgeLabel, opPrec=opPrec)
+                    value = evaluateFormula(parseLabel, opDict, nodeLabel)
+
+                    # If true, then take transition and create a state in product-automata
+                    if value is True:
+                        newNode = (gDestNode, aDestNode)
+
+                        # If node doesn't exists in product-automata
+                        if newNode not in prodAutomata.nodes():
+                            # Then add it to frontier.
+                            prodAutomata.add_node(newNode)
+                            frontier.append(newNode)
+
+                            # Add edge to prodAutomata. (Note: networkx takes care of repeatition)
+                            prodAutomata.add_edge(expNode, newNode, gDestNode[1])
+
+                            # If node is final state (accepting), add it accordingly
+                            if aDestNode in automata.finalStates and newNode not in prodAutomata.finalStates:
+                                prodAutomata.finalStates.append(newNode)
+
+        if verbose:
+            print('\t', 'Product Automata Nodes: ', prodAutomata.number_of_nodes(), ' Edges: ', prodAutomata.number_of_edges())
+            print('\t', 'Product Automata {} Final States'.format(len(prodAutomata.finalStates)), prodAutomata.finalStates)
+            print()
+
+        #print('Duplication Check: ', len(prodAutomata.finalStates), len(set(prodAutomata.finalStates)))
+        return prodAutomata
 
 
 # Helper Class Automata: Represents Labeled transitions, states
@@ -630,6 +800,9 @@ def _automatize(spec, verbose=False):
             finalStateSet = re.findall(r'\d+', str(dest.acc))  # The logic for this is not clear.
             if len(finalStateSet) > 0: grfAutomata.finalStates.append(s)  # This appeared to best explanation!
 
+    # Patch 1: Avoid duplication in final states set
+    grfAutomata.finalStates = list(set(grfAutomata.finalStates))
+
     if verbose:
         print('\t', 'graphAutomata Nodes: ', grfAutomata.nodes())
         print('\t', 'graphAutomata Edges: ', grfAutomata.edges())
@@ -637,6 +810,129 @@ def _automatize(spec, verbose=False):
 
     # Return graph-Automata
     return grfAutomata
+
+
+# Attractor sets computation
+def _attractor(graph, F, isPlayer1=True):
+    # Initialize attractor
+    attractor = set(F)          # stores net attractor set
+    subAttr = [attractor]       # Sequentially stores n'th attractor set
+
+    # Loop
+    frontier = set()
+    while True:
+        # Update frontier
+        lastAttr = subAttr[-1]
+        for nd in lastAttr:
+            inEdges = graph.in_edges(nd)
+            frontier |= set(inEdges)
+
+        # print(frontier)
+        #
+
+
+
+def parseFormula(formula, opPrec):
+    """
+    Prefix conversion required.
+
+    :param formula: string of propositional logic formula
+    @:param opDict: operator dictionary with sym: function_pointer pairs.
+    :return:
+    """
+
+    # Prefix conversion helper function
+    def myPrefix(formula):
+        """
+        Converts formula string to prefix.
+
+        :param formula: string
+        :return: list in prefix format
+        """
+
+        prefixList = list()
+        operatorStack = list()
+        for token in formula:
+            if token in string.ascii_lowercase:
+                prefixList.append(token)
+
+            elif token in '1':
+                prefixList.append(True)
+
+            elif token in '0':
+                prefixList.append(False)
+
+            elif token in ' ':
+                continue
+
+            else:
+                while (len(operatorStack) > 0) and (opPrec[operatorStack[-1]] > opPrec[token]):
+                    prefixList.append(operatorStack.pop())
+
+                operatorStack.append(token)
+
+        while len(operatorStack) > 0:
+            prefixList.append(operatorStack.pop())
+
+        prefixList.reverse()
+        return prefixList
+
+    # Convert formula to prefix
+    prefFormula = myPrefix(formula=formula)
+
+    return  prefFormula
+
+
+def evaluateFormula(formula, opDict, apDict):
+    # Replace all atomic propositions in formula by values from apDict
+    for i in range(len(formula)):
+        if formula[i] in apDict.keys():
+            formula[i] = apDict[formula[i]]
+
+    # Loop until formula is reduced to single literal
+    while len(formula) != 1:
+        # Fetch last occuring operator
+        myOperator = None
+        idxOperator = None
+        for i in range(len(formula) - 1, -1, -1):
+            if formula[i] in opDict.keys():
+                myOperator = formula[i]
+                idxOperator = i
+                break
+
+        # Fetch number of operands required for operation from opDict
+        numOperands, fcn = opDict[myOperator]
+
+        # Reduce formula by performing operation
+        if numOperands == 1:
+            # Find operand
+            operand = formula[idxOperator+1]
+
+            # Complete Operation
+            result = fcn(operand)
+
+            # Replace operator and operand with result
+            formula[idxOperator] = result
+            formula.pop(idxOperator+1)
+
+        elif numOperands == 2:
+            # Find operands
+            operand1 = formula[idxOperator + 1]
+            operand2 = formula[idxOperator + 2]
+
+            # Complete Operation
+            result = fcn(operand1, operand2)
+
+            # Replace operator and operand with result
+            formula[idxOperator] = result
+            formula.pop(idxOperator + 1)
+            formula.pop(idxOperator + 1)
+
+        else:
+            raise Exception('Unable to process parsedExpression.')
+
+    # Return final value of formula
+    return formula[0]
 
 
 def testWorld():
@@ -675,8 +971,10 @@ if __name__ == '__main__':
                (lambda x: tuple([x[0] - 1, x[1]])),  # Left
                (lambda x: tuple([x[0], x[1] - 1]))]  # Down
 
-
     w = World(roadMap='road.bmp', dim=5, grassMap='grass.bmp')
+    w.obsMap[0, 1] = 1
+    print('---Obs---', '\n', np.rot90(w.obsMap))
+
     c = Car(start=1, goal=23, spec='Ga & Fb', actions=actions, world=w)
     print(c.transduce([w, w, w, w]))
 

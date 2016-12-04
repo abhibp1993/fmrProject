@@ -100,9 +100,9 @@ class SM(object):
         for i in nSteps:
             try:
                 lstOutputs.append(self.step(inpFcn(i)))
-            except ex:
+            except:
                 lstOutputs.append(None)
-                print 'Step function failed, for index: ', i, ' ', str(ex)
+                print('Step function failed, for index: ', i)
 
         return lstOutputs
 
@@ -118,7 +118,7 @@ class SM(object):
             if self.doneCondition(self.currState): return True
         except:
             # Add to log
-            print "WARNING: doneCondition looks to have error OR is not initialized"
+            print("WARNING: doneCondition looks to have error OR is not initialized")
 
         return False
 
