@@ -384,7 +384,7 @@ class Car(sm.SM):
         # Select Behavior
         if True in obs:
             behavior = Car.AVOID_OBSTACLE
-            action = self.avoidObstacle.step(inp=(visWorld, state, obs.index(True)))
+            action = self.avoidObstacle.step(inp=(visWorld, state, obs.index(True), suggestedMove))
         else:
             behavior = Car.GO_TO_GOAL
             action = self.go2goal.step(inp=(state, suggestedMove))      # inp - current position, suggested step
@@ -557,7 +557,7 @@ class AvoidObstacle(sm.SM):
     def getNextValues(self, state, inp):
         """
         State of machine is nothing. (Using memory to store last actions might prove useful, but currently ignored)
-        Input to machine is observable world slice, and obstacle car location in it (as cell label).
+        Input to machine is observable world slice, obstacle car location and suggested next move.
 
         Assumptions:
             1. Obstacle car can move to any of its 8-neighbors.
@@ -569,7 +569,7 @@ class AvoidObstacle(sm.SM):
         :return: 2-tuple of (None, action)
         """
         # Decouple input
-        worldSlice, myCar, obsCar = inp
+        worldSlice, myCar, obsCar, suggestedMove = inp
 
         # Generate 1-step game graph
         grf = self._graphifyOneStep(myCar, obsCar)
@@ -577,14 +577,31 @@ class AvoidObstacle(sm.SM):
 
         # Compute product of automata and graph
         prodAuto = self._prodAutoGraph(self.auto, grf)
-        print('Nodes: ', prodAuto.nodes(), '\n', 'Edges: ', prodAuto.number_of_edges())
+        for e in prodAuto.edges(): print(e)
 
         # Setup reachability game for obstacle car
         F_dash = list(set(prodAuto.nodes()) - set(prodAuto.finalStates))  # Compute the complement set of F for game
-        attrSets = _attractor(grf, F_dash)
+        attr, subAttr = _attractor(prodAuto, F_dash, False)
+        safeStates = set(prodAuto.nodes()) - attr
 
-        # Return
-        return None, None
+        # Extract safe states for player 1 to move
+        safeMoves = set()
+        for s in safeStates:
+            safeMoves.add(s[0][0][0])
+
+        # Compute reachable set
+        reachableSet = [self.world.label(act(self.world.cell(myCar)))
+                        for act in self.myActions if act(self.world.cell(myCar)) in self.world]
+
+        # Compute possible moves as intersection of reachable set and safe moves
+        possibleMoves = set(reachableSet) & safeMoves
+
+        # Check if suggested move is possible
+        if suggestedMove in possibleMoves:
+            return None, self.myActions[reachableSet.index(suggestedMove)]
+        else:
+            return None, self.myActions[0]        # Need to write selection method. (dummy for now)
+
 
     def _graphifyOneStep(self, p1, p2):
         """
@@ -825,10 +842,38 @@ def _attractor(graph, F, isPlayer1=True):
         lastAttr = subAttr[-1]
         for nd in lastAttr:
             inEdges = graph.in_edges(nd)
-            frontier |= set(inEdges)
+            frontier |= set([edg[0] for edg in inEdges])
 
-        # print(frontier)
-        #
+        print(frontier)
+
+        # Iterate over nodes in frontier and find whether to make them permanant
+        newAttr = set()
+        for nd in frontier:
+            # Decouple information from node
+            (((p1, p2), turnOfPlayer1), autState) = nd
+
+            if (turnOfPlayer1 and isPlayer1) or (not turnOfPlayer1 and not isPlayer1):
+                newAttr.add(nd)
+
+            else:
+                for edge in graph.edges(nd):
+                    dest = edge[1]
+                    if dest not in attractor:
+                        continue
+
+                newAttr.add(nd)
+
+        # Check loop termination condition
+        if newAttr == lastAttr:
+            break
+
+        # Update attractor set
+        attractor |= newAttr
+        subAttr.append(newAttr)
+
+    return attractor, subAttr
+
+
 
 
 
