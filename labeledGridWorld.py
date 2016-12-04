@@ -135,11 +135,11 @@ class Car(sm.SM):
         """
         # Get next action
         nextDesiredAction = self.route.pop(0)
+        return nextDesiredAction
 
 
 # run stuff
 w = World(dim=5)
-# w._bmpToFlags([[0, 1, 0, 1, 1],[0, 1, 0, 0, 0],[0, 1, 0,1 ,1],[0, 1, 0,1 ,1],[0, 1, 0,1 ,1]],3)
 # c = Car(startState=(1, 1, NORTH), world=w, goal=(4, 0, SOUTH), values=[1]*7)
 
 # Rembmer: for the bmp, 0 is black, 1 is white
