@@ -515,16 +515,16 @@ class Router(sm.SM):
         for label in np.nditer(world.labelMap):
             label = int(label)
             x, y = world.cell(label)
-
-            if [x, y] in world: grf.add_edge(label, world.label([x, y]))            # self
-            if [x, y+1] in world: grf.add_edge(label, world.label([x, y+1]))        # up
-            if [x, y-1] in world: grf.add_edge(label, world.label([x, y-1]))        # down
-            if [x+1, y] in world: grf.add_edge(label, world.label([x+1, y]))        # right
-            if [x-1, y] in world: grf.add_edge(label, world.label([x-1, y]))        # left
-            if [x+1, y+1] in world: grf.add_edge(label, world.label([x+1, y+1]))    # up-right
-            if [x+1, y-1] in world: grf.add_edge(label, world.label([x+1, y-1]))    # down-right
-            if [x-1, y+1] in world: grf.add_edge(label, world.label([x-1, y+1]))    # up-left
-            if [x-1, y-1] in world: grf.add_edge(label, world.label([x-1, y-1]))    # down-left
+            #TODO ADD VECTOR OF LABELS HERE
+            if [x, y] in world: grf.add_edge(label, world.label([x, y]), [world.roadMap[(x, y)], world.grassMap[(x,y)], world.obsMap[(x, y)], world.yieldMap[(x,y)], world.stopMap[(x,y)]])            # self
+            if [x, y+1] in world: grf.add_edge(label, world.label([x, y+1]), [world.roadMap[(x, y+1)], world.grassMap[(x,y+1)], world.obsMap[(x, y+1)], world.yieldMap[(x,y+1)], world.stopMap[(x,y+1)]])       # up
+            if [x, y-1] in world: grf.add_edge(label, world.label([x, y-1]), [world.roadMap[(x, y-1)], world.grassMap[(x,y-1)], world.obsMap[(x, y-1)], world.yieldMap[(x,y-1)], world.stopMap[(x,y-1)]])        # down
+            if [x+1, y] in world: grf.add_edge(label, world.label([x+1, y]), [world.roadMap[(x+1, y)], world.grassMap[(x+1,y)], world.obsMap[(x+1, y)], world.yieldMap[(x+1,y)], world.stopMap[(x+1,y)]])        # right
+            if [x-1, y] in world: grf.add_edge(label, world.label([x-1, y]), [world.roadMap[(x-1, y)], world.grassMap[(x-1,y)], world.obsMap[(x-1, y)], world.yieldMap[(x-1,y)], world.stopMap[(x-1,y)]])        # left
+            if [x+1, y+1] in world: grf.add_edge(label, world.label([x+1, y+1]), [world.roadMap[(x+1,y+1)], world.grassMap[(x+1,y+1)], world.obsMap[(x+1,y+1)], world.yieldMap[(x+1,y+1)], world.stopMap[(x+1,y+1)]])    # up-right
+            if [x+1, y-1] in world: grf.add_edge(label, world.label([x+1, y-1]), [world.roadMap[(x+1,y-1)], world.grassMap[(x+1,y-1)], world.obsMap[(x+1,y-1)], world.yieldMap[(x+1,y-1)], world.stopMap[(x+1,y-1)]])    # down-right
+            if [x-1, y+1] in world: grf.add_edge(label, world.label([x-1, y+1]), [world.roadMap[(x-1,y+1)], world.grassMap[(x-1,y+1)], world.obsMap[(x-1,y+1)], world.yieldMap[(x-1,y+1)], world.stopMap[(x-1,y+1)]])    # up-left
+            if [x-1, y-1] in world: grf.add_edge(label, world.label([x-1, y-1]), [world.roadMap[(x-1,y-1)], world.grassMap[(x-1,y-1)], world.obsMap[(x-1,y-1)], world.yieldMap[(x-1,y-1)], world.stopMap[(x-1,y-1)]])    # down-left
 
         return grf
 
@@ -541,6 +541,7 @@ class AvoidObstacle(sm.SM):
         # Local variables
         self.world = world
         self.myActions = actions
+        #TODO: should not assume the obstacle can move the same way as the car, should take in dynamics of obstacle instead
         self.obsAction = [(lambda x: [x[0], x[1]]),
                           (lambda x: [x[0], x[1]+1]),
                           (lambda x: [x[0], x[1]-1]),
