@@ -287,6 +287,8 @@ class World(object):
         assert 1 not in np.bitwise_and(self.grassMap, self.roadMap), 'World._validateWorld: Grass and Roads overlap'
 
 
+# TODO: Car state doesn't have direction. Add it!
+# TODO: Stop-Sign Behavior Add
 # Car
 class Car(sm.SM):
     """
@@ -322,7 +324,7 @@ class Car(sm.SM):
         # LTL Processing, Automata
         self.spec = spec
         self.ltlAutomata = _automatize(spec)
-        print('Automata done... ', self.ltlAutomata.nodes(), self.ltlAutomata.edges())
+        #print('Automata done... ', self.ltlAutomata.nodes(), self.ltlAutomata.edges())
 
         # Behaviors
         self.go2goal = Go2Goal(world=world, actions=self.actions)
@@ -393,7 +395,7 @@ class Car(sm.SM):
         nextState = inp.label(action(inp.cell(state)))
 
         # Return
-        return nextState, (action, behavior)
+        return nextState, (action, behavior, nextState)
 
 
 # GoToGoal
@@ -481,7 +483,7 @@ class Router(sm.SM):
         """
         # If route is not previously computed or car has deviated off, reroute.
         if len(state) == 0 or inp not in state:
-            nState = nx.astar_path(G=self.graph, source=inp, target=self.goal)
+            nState = nx.astar_path(G=self.graph, source=inp, target=self.goal, weight='cost')
         else:
             nState = copy.deepcopy(state)           # Avoid mutability issues
 
@@ -515,20 +517,35 @@ class Router(sm.SM):
         for label in np.nditer(world.labelMap):
             label = int(label)
             x, y = world.cell(label)
-            #TODO ADD VECTOR OF LABELS HERE
-            if [x, y] in world: grf.add_edge(label, world.label([x, y]), [world.roadMap[(x, y)], world.grassMap[(x,y)], world.obsMap[(x, y)], world.yieldMap[(x,y)], world.stopMap[(x,y)]])            # self
-            if [x, y+1] in world: grf.add_edge(label, world.label([x, y+1]), [world.roadMap[(x, y+1)], world.grassMap[(x,y+1)], world.obsMap[(x, y+1)], world.yieldMap[(x,y+1)], world.stopMap[(x,y+1)]])       # up
-            if [x, y-1] in world: grf.add_edge(label, world.label([x, y-1]), [world.roadMap[(x, y-1)], world.grassMap[(x,y-1)], world.obsMap[(x, y-1)], world.yieldMap[(x,y-1)], world.stopMap[(x,y-1)]])        # down
-            if [x+1, y] in world: grf.add_edge(label, world.label([x+1, y]), [world.roadMap[(x+1, y)], world.grassMap[(x+1,y)], world.obsMap[(x+1, y)], world.yieldMap[(x+1,y)], world.stopMap[(x+1,y)]])        # right
-            if [x-1, y] in world: grf.add_edge(label, world.label([x-1, y]), [world.roadMap[(x-1, y)], world.grassMap[(x-1,y)], world.obsMap[(x-1, y)], world.yieldMap[(x-1,y)], world.stopMap[(x-1,y)]])        # left
-            if [x+1, y+1] in world: grf.add_edge(label, world.label([x+1, y+1]), [world.roadMap[(x+1,y+1)], world.grassMap[(x+1,y+1)], world.obsMap[(x+1,y+1)], world.yieldMap[(x+1,y+1)], world.stopMap[(x+1,y+1)]])    # up-right
-            if [x+1, y-1] in world: grf.add_edge(label, world.label([x+1, y-1]), [world.roadMap[(x+1,y-1)], world.grassMap[(x+1,y-1)], world.obsMap[(x+1,y-1)], world.yieldMap[(x+1,y-1)], world.stopMap[(x+1,y-1)]])    # down-right
-            if [x-1, y+1] in world: grf.add_edge(label, world.label([x-1, y+1]), [world.roadMap[(x-1,y+1)], world.grassMap[(x-1,y+1)], world.obsMap[(x-1,y+1)], world.yieldMap[(x-1,y+1)], world.stopMap[(x-1,y+1)]])    # up-left
-            if [x-1, y-1] in world: grf.add_edge(label, world.label([x-1, y-1]), [world.roadMap[(x-1,y-1)], world.grassMap[(x-1,y-1)], world.obsMap[(x-1,y-1)], world.yieldMap[(x-1,y-1)], world.stopMap[(x-1,y-1)]])    # down-left
+            if [x, y] in world: grf.add_edge(label, world.label([x, y]), weight=[world.roadMap[x, y], world.grassMap[x,y], world.obsMap[x, y], world.yieldMap[x,y], world.stopMap[x,y]])            # self
+            if [x, y+1] in world: grf.add_edge(label, world.label([x, y+1]), weight=[world.roadMap[x, y+1], world.grassMap[x,y+1], world.obsMap[x, y+1], world.yieldMap[x,y+1], world.stopMap[x,y+1]])       # up
+            if [x, y-1] in world: grf.add_edge(label, world.label([x, y-1]), weight=[world.roadMap[x, y-1], world.grassMap[x,y-1], world.obsMap[x, y-1], world.yieldMap[x,y-1], world.stopMap[x,y-1]])        # down
+            if [x+1, y] in world: grf.add_edge(label, world.label([x+1, y]), weight=[world.roadMap[x+1, y], world.grassMap[x+1,y], world.obsMap[x+1, y], world.yieldMap[x+1,y], world.stopMap[x+1,y]])        # right
+            if [x-1, y] in world: grf.add_edge(label, world.label([x-1, y]), weight=[world.roadMap[x-1, y], world.grassMap[x-1,y], world.obsMap[x-1, y], world.yieldMap[x-1,y], world.stopMap[x-1,y]])        # left
+            if [x+1, y+1] in world: grf.add_edge(label, world.label([x+1, y+1]), weight=[world.roadMap[x+1,y+1], world.grassMap[x+1,y+1], world.obsMap[x+1,y+1], world.yieldMap[x+1,y+1], world.stopMap[x+1,y+1]])    # up-right
+            if [x+1, y-1] in world: grf.add_edge(label, world.label([x+1, y-1]), weight=[world.roadMap[x+1,y-1], world.grassMap[x+1,y-1], world.obsMap[x+1,y-1], world.yieldMap[x+1,y-1], world.stopMap[x+1,y-1]])    # down-right
+            if [x-1, y+1] in world: grf.add_edge(label, world.label([x-1, y+1]), weight=[world.roadMap[x-1,y+1], world.grassMap[x-1,y+1], world.obsMap[x-1,y+1], world.yieldMap[x-1,y+1], world.stopMap[x-1,y+1]])    # up-left
+            if [x-1, y-1] in world: grf.add_edge(label, world.label([x-1, y-1]), weight=[world.roadMap[x-1,y-1], world.grassMap[x-1,y-1], world.obsMap[x-1,y-1], world.yieldMap[x-1,y-1], world.stopMap[x-1,y-1]])    # down-left
+
+        # Compute costs of all the edges
+        def _getCost(weights, values):
+            assert len(weights) == len(values), "Length of values not equal to length of weights. len(weight)=%d, len(values)=%d"%(len(weights), len(values))
+            assert False in [i < 0 for i in values], "Values should be strictly non negative"
+            #assert values[0] >= 1, "For A* to work, this weight must be at least 1"
+
+            tempCost = 0
+            for i in range(len(weights)):
+                tempCost = tempCost + weights[i] * values[i]
+            return tempCost
+
+        for edg in grf.edges():
+            grf[edg[0]][edg[1]]['cost'] = _getCost([1]*5, grf.get_edge_data(edg[0], edg[1])['weight'])
 
         return grf
 
 
+# TODO: Opponent plays first.
+# TODO: Assume knowledge dynamics of opponent.
 # AvoidObstacle
 class AvoidObstacle(sm.SM):
     def __init__(self, world, actions):
@@ -578,7 +595,7 @@ class AvoidObstacle(sm.SM):
 
         # Compute product of automata and graph
         prodAuto = self._prodAutoGraph(self.auto, grf)
-        for e in prodAuto.edges(): print(e)
+        #for e in prodAuto.edges(): print(e)
 
         # Setup reachability game for obstacle car
         F_dash = list(set(prodAuto.nodes()) - set(prodAuto.finalStates))  # Compute the complement set of F for game
@@ -845,7 +862,7 @@ def _attractor(graph, F, isPlayer1=True):
             inEdges = graph.in_edges(nd)
             frontier |= set([edg[0] for edg in inEdges])
 
-        print(frontier)
+        #print(frontier)
 
         # Iterate over nodes in frontier and find whether to make them permanant
         newAttr = set()
@@ -873,9 +890,6 @@ def _attractor(graph, F, isPlayer1=True):
         subAttr.append(newAttr)
 
     return attractor, subAttr
-
-
-
 
 
 def parseFormula(formula, opPrec):
@@ -984,7 +998,7 @@ def evaluateFormula(formula, opDict, apDict):
 def testWorld():
     # Create world
     w = World(roadMap='road.bmp', dim=5, grassMap='grass.bmp')
-    print('--Labels--', '\n', np.rot90(w.labelMap))  # Rotation is for visual convenience
+    #print('--Labels--', '\n', np.rot90(w.labelMap))  # Rotation is for visual convenience
     print('--Grass--', '\n', np.rot90(w.grassMap))
     # print(w.cell(0), w.cell(28))    # Gives cell given label.
 
@@ -1010,6 +1024,7 @@ def testWorld():
     print(w.info(20))
 
 
+# TODO: Rigorous Testing!!!
 if __name__ == '__main__':
     #testWorld()
     actions = [(lambda x: tuple([x[0] + 1, x[1]])),  # Right
@@ -1019,10 +1034,10 @@ if __name__ == '__main__':
 
     w = World(roadMap='road.bmp', dim=5, grassMap='grass.bmp')
     w.obsMap[0, 1] = 1
-    print('---Obs---', '\n', np.rot90(w.obsMap))
+    #print('---Obs---', '\n', np.rot90(w.obsMap))
 
     c = Car(start=1, goal=23, spec='Ga & Fb', actions=actions, world=w)
-    print(c.transduce([w, w, w, w]))
+    print(c.transduce([w, w, w, w, w, w]))
 
     r = Router(w, 0)
     # print(r.transduce([0, 1, 2, 3, 3]))
