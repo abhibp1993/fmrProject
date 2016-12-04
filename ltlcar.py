@@ -1004,12 +1004,33 @@ if __name__ == '__main__':
 
     w = World(roadMap='world55/road.bmp', dim=5, grassMap='world55/grass.bmp')
     w.obsMap[0, 1] = 1
-    #print('---Obs---', '\n', np.rot90(w.obsMap))
+    print('---Obs---', '\n', np.rot90(w.obsMap))
 
     c = Car(start=1, goal=23, spec='Ga & Fb', actions=actions, world=w)
-    print(c.transduce([w, w, w, w, w, w]))
+
+    #image creation portion
+    img = Image.new( 'RGB', (w.dim,w.dim), "white") # create a new black image
+    pixels = img.load() # create the pixel map
+    #find original plan
+    c.transduce([w])
+    originalPath = c.router.currState
+    for x in range(0,w.dim):
+        for y in range(0,w.dim):
+            pixels[x,y] = (0,0,0)
+    for act in range(0, len(originalPath)):
+        pos = w.cell(originalPath[act])
+        pixels[pos[1],pos[0]] = (0, 0, 255) # set the colour accordingly
+    #solve actual
+    actualPath = c.transduce([w, w, w, w, w,w])
+    print(actualPath)
+    #modify image
+    for act in range(0, len(actualPath)):
+        pos = w.cell(actualPath[act][2])
+        pixels[pos[1],pos[0]] = (255,0,pixels[pos[1],pos[0]][2]) # set the colour accordingly
+    
+    img = img.resize((500,500))
+    img.rotate(270).show()
 
     r = Router(w, 0)
     # print(r.transduce([0, 1, 2, 3, 3]))
-
 
