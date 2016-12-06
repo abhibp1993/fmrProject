@@ -287,8 +287,8 @@ class World(object):
         assert 1 not in np.bitwise_and(self.grassMap, self.roadMap), 'World._validateWorld: Grass and Roads overlap'
 
 
-# TODO: Car state doesn't have direction. Add it!
-# TODO: Stop-Sign Behavior Add
+# TODO: Car state doesn't have direction. Add it! PRIORITY #1
+# TODO: Stop-Sign Behavior Add pRIORITY #3
 # Car
 class Car(sm.SM):
     """
@@ -300,12 +300,14 @@ class Car(sm.SM):
     Behaviors:
         1. Go-to-Goal: Default behavior when there is no obstacle in view.
         2. Avoid Obstacle: When there is some obstacle in view.
+        3. wait at stop sign: When the next edge is a stop sign
 
     Routing:
         1. A* router, when car deviates from designated route.
     """
     AVOID_OBSTACLE = 'AVOID OBSTACLE'
     GO_TO_GOAL = 'GO-TO-GOAL'
+    WAIT_AT_STOP_SIGN = 'WAIT AT STOP SIGN'
 
     def __init__(self, world, start, goal, spec, actions):
         """
@@ -320,6 +322,7 @@ class Car(sm.SM):
         self.goal = goal
         self.actions = actions
         self.visibility = 3
+        self.StopSignMemory = 0
 
         # LTL Processing, Automata
         self.spec = spec
@@ -379,19 +382,24 @@ class Car(sm.SM):
         # Check if obstacle is present in view
         myView = self._getViewInfo(inp, visWorld)
         obs = [myView[k].obstacle for k in myView.keys()]
+        
+        # Check if stop sign is next
+        nextStop = (inp.stopMap[state%inp.dim][state/inp.dim]) #TODO TEST PRIORITY 3
 
         # print (np.rot90(visWorld))
         # for k in myView.keys():
         #     print(k, str(myView[k]))
 
         # Select Behavior
-        if True in obs:
+        if nextStop:
+            behavior = Car.WAIT_AT_STOP_SIGN
+            suggestedMove = self.waitAtStopSign.step(inp=(visWorld, state, suggestedMove, stopSignMemory))   #TODO fix inputs
+        if True in obs: #NOTE NOT ELSE IF!
             behavior = Car.AVOID_OBSTACLE
-            action = self.avoidObstacle.step(inp=(visWorld, state, obs.index(True), suggestedMove))
+            action = self.avoidObstacle.step(inp=(visWorld, state, obs.index(True), suggestedMove))   #TODO ensure memory resets if action
         else:
             behavior = Car.GO_TO_GOAL
             action = self.go2goal.step(inp=(state, suggestedMove))      # inp - current position, suggested step
-
         # Perform action
         nextState = inp.label(action(inp.cell(state)))
 
@@ -544,21 +552,23 @@ class Router(sm.SM):
 
         return grf
 # waitAtStopSign
+#TODO PRIORITY 3
+# if there is a stop sign, this will iterate stopsign memory and wait
 class waitAtStopSign(sm.SM):
     def __init__(self, world, actions):
-        pass
-    #Based on a car's personality, the car will wait at the stop sign 
-    def getMinWaitTime(self):
-        pass
-    #If at any time the car is in danger and waiting cannot be selected, switch behaviors
-    def isSafe(self):
-        pass
-    #exit waiting behavior after minimum time once it is safe to cross
-    def lookBothWays(self):
+
+        # Local variables
+        self.world = world
+        self.myActions = actions
+
+        # Initialize the state machine
+        self.initialize()
+    #Based on a car's personality, the car will wait at the stop sign and return the input suggested action if the time has completed, otherwise will return the current cell as the suggestion
+    def checkWaitTime(self):
         pass
 
-# TODO: Opponent plays first.
-# TODO: Assume knowledge dynamics of opponent.
+# TODO: Opponent plays first. PRIORITY 2
+# TODO: Assume knowledge dynamics of opponent. PRIORITY 4
 # AvoidObstacle
 class AvoidObstacle(sm.SM):
     def __init__(self, world, actions):
@@ -631,7 +641,7 @@ class AvoidObstacle(sm.SM):
         if suggestedMove in possibleMoves:
             return None, self.myActions[reachableSet.index(suggestedMove)]
         else:
-            return None, self.myActions[0]        # Need to write selection method. (dummy for now) #TODO
+            return None, self.myActions[0]        # Need to write selection method. (dummy for now) #TODO PRIORITY 5
 
 
     def _graphifyOneStep(self, p1, p2):
