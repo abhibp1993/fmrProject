@@ -329,6 +329,7 @@ class Car(sm.SM):
         # Behaviors
         self.go2goal = Go2Goal(world=world, actions=self.actions)
         self.avoidObstacle = AvoidObstacle(world=world, actions=self.actions)
+        self.waitAtStopSign = waitAtStopSign(world=world, actions=self.actions)
         self.router = Router(world, goal)
 
         # Initialize state machine
@@ -542,7 +543,19 @@ class Router(sm.SM):
             grf[edg[0]][edg[1]]['cost'] = _getCost([1]*5, grf.get_edge_data(edg[0], edg[1])['weight'])
 
         return grf
-
+# waitAtStopSign
+class waitAtStopSign(sm.SM):
+    def __init__(self, world, actions):
+        pass
+    #Based on a car's personality, the car will wait at the stop sign 
+    def getMinWaitTime(self):
+        pass
+    #If at any time the car is in danger and waiting cannot be selected, switch behaviors
+    def isSafe(self):
+        pass
+    #exit waiting behavior after minimum time once it is safe to cross
+    def lookBothWays(self):
+        pass
 
 # TODO: Opponent plays first.
 # TODO: Assume knowledge dynamics of opponent.
@@ -618,7 +631,7 @@ class AvoidObstacle(sm.SM):
         if suggestedMove in possibleMoves:
             return None, self.myActions[reachableSet.index(suggestedMove)]
         else:
-            return None, self.myActions[0]        # Need to write selection method. (dummy for now)
+            return None, self.myActions[0]        # Need to write selection method. (dummy for now) #TODO
 
 
     def _graphifyOneStep(self, p1, p2):
