@@ -16,6 +16,11 @@ import string
 opPrec = {'!': 2, '&': 1, '|': 1}  # Operator Precedences
 opDict = {'!': [1, lambda a: not a], '&': [2, lambda a, b: a and b], '|': [2, lambda a, b: a or b]}
 
+# Define Directions
+EAST = 0
+NORTH = 1
+WEST = 2
+SOUTH = 3
 
 class NodeAP:
     """
@@ -357,14 +362,14 @@ class Car(sm.SM):
         """
         Defines the transition function for self-driving car.
 
-        :param state: label of current state
+        :param state: 2-tuple of (label of current state, direction)
         :param inp: world file (complete world is sent, but not only slice is used further for processing)
         :return: 2-tuple of form (nState=newState, output=(action, behavior))
         """
         assert isinstance(inp, World), 'inp must be a World instance.'
 
         # Slice out the world (ideally this should be the input)
-        x, y = inp.cell(state)
+        x, y = inp.cell(state[0])
         if np.NaN in [x, y]:
             print('Car is out of world! Flying, eh?')
             return state, (None, 'Flying')
@@ -373,7 +378,7 @@ class Car(sm.SM):
         #print(np.rot90(visWorld))
 
         # Are we on proper route? - Get next ideal move
-        suggestedMove = self.router.step(inp=state)      # Modify input according to router machine requirements
+        suggestedMove = self.router.step(inp=state[0])      # Modify input according to router machine requirements
 
         # Check if obstacle is present in view
         myView = self._getViewInfo(inp, visWorld)
@@ -392,7 +397,8 @@ class Car(sm.SM):
             action = self.go2goal.step(inp=(state, suggestedMove))      # inp - current position, suggested step
 
         # Perform action
-        nextState = inp.label(action(inp.cell(state)))
+        output = action(list(inp.cell(state[0])) + [state[1]])
+        nextState = [inp.label(output[0:2]), output[2]]
 
         # Return
         return nextState, (action, behavior, nextState)
@@ -423,20 +429,27 @@ class Go2Goal(sm.SM):
         :return: 2-tuple of (nextState, action)
         """
         # Copy information
-        currState, suggestedMove = inp
+        (label, dir), suggestedMove = inp
 
         # Compute reachable set
-        reachableSet = [self.world.label(act(self.world.cell(currState)))
-                        for act in self.actions if act(self.world.cell(currState)) in self.world]
+        reachableSet = list()
+        for act in self.actions:
+            currCell = list(self.world.cell(label))
+            outCell = act(currCell + [dir])
+            outCell = (self.world.label(outCell[0:2]), outCell[2])
+            reachableSet.append(outCell)
+
+        # reachableSet = [self.world.label(act([self.world.cell(label), dir])[0:2])
+        #                 for act in self.actions if act([self.world.cell(label), dir])[0:2] in self.world]
 
         # If suggestedMove is reachable, take it.
-        if suggestedMove in reachableSet:
-            return state, self.actions[reachableSet.index(suggestedMove)]
+        if suggestedMove in [s[0] for s in reachableSet]:
+            return state, self.actions[[s[0] for s in reachableSet].index(suggestedMove)]
 
         # Else, take the best possible move
         else:
             # Compute euclidean distances from suggestedMove
-            dist = [self.world.dist(suggestedMove, l) for l in reachableSet]
+            dist = [self.world.dist(suggestedMove, s[0]) for s in reachableSet]
 
             # Find index of least distance move
             minIdx = dist.index(min(dist))
@@ -445,6 +458,7 @@ class Go2Goal(sm.SM):
             return state, self.actions[minIdx]
 
 
+# TODO: Check if plans are correct.
 # Route Machine
 class Router(sm.SM):
     def __init__(self, world, goal):
@@ -544,6 +558,7 @@ class Router(sm.SM):
         return grf
 
 
+# TODO: Make it compatible with new state-representation of car.
 # TODO: Opponent plays first.
 # TODO: Assume knowledge dynamics of opponent.
 # AvoidObstacle
@@ -997,16 +1012,45 @@ def evaluateFormula(formula, opDict, apDict):
 
 # TODO: Rigorous Testing!!!
 if __name__ == '__main__':
-    actions = [(lambda x: tuple([x[0] + 1, x[1]])),  # Right
-               (lambda x: tuple([x[0], x[1] + 1])),  # Up
-               (lambda x: tuple([x[0] - 1, x[1]])),  # Left
-               (lambda x: tuple([x[0], x[1] - 1]))]  # Down
+    # actions = [(lambda x: tuple([x[0] + 1, x[1]])),  # Right
+    #            (lambda x: tuple([x[0], x[1] + 1])),  # Up
+    #            (lambda x: tuple([x[0] - 1, x[1]])),  # Left
+    #            (lambda x: tuple([x[0], x[1] - 1]))]  # Down
 
+    # Define actions
+    actions = list()
+    direction = [1, 0, -1, 0]
+    cos = lambda x: direction[x]
+    sin = lambda x: direction[(3 + x) % 4]
+    cw = lambda x: (x - 1) % 4
+    ccw = lambda x: (x + 1) % 4
+
+    def wait(cell):
+        return cell                                                              # wait
+
+    def forward(cell):
+        return cell[0] + cos(cell[2]), cell[1] + sin(cell[2]), cell[2]                                # forward
+
+    def fwdRight(cell):
+        return cell[0] + sin(cell[2]) + cos(cell[2]), cell[1] + sin(cell[2]) - cos(cell[2]), cell[2] # fr
+
+    def fwdLeft(cell):
+        return cell[0] - sin(cell[2]) + cos(cell[2]), cell[1] + sin(cell[2]) + cos(cell[2]), cell[2]  # fl
+
+    def right(cell):
+        return cell[0] + sin(cell[2]), cell[1] - cos(cell[2]), cw(cell[2])  # RIGHT
+
+    def left(cell):
+        return cell[0] - sin(cell[2]), cell[1] + cos(cell[2]), ccw(cell[2])  # LEFT
+
+    actions = [wait, forward, fwdRight, fwdLeft, right, left]
+
+    # Create world
     w = World(roadMap='world55/road.bmp', dim=5, grassMap='world55/grass.bmp')
-    w.obsMap[0, 1] = 1
+    #w.obsMap[0, 1] = 1
     #print('---Obs---', '\n', np.rot90(w.obsMap))
 
-    c = Car(start=1, goal=23, spec='Ga & Fb', actions=actions, world=w)
+    c = Car(start=(1, NORTH), goal=23, spec='Ga & Fb', actions=actions, world=w)
     print(c.transduce([w, w, w, w, w, w]))
 
     r = Router(w, 0)
