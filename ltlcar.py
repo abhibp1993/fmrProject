@@ -292,8 +292,7 @@ class World(object):
         assert 1 not in np.bitwise_and(self.grassMap, self.roadMap), 'World._validateWorld: Grass and Roads overlap'
 
 
-# TODO: Car state doesn't have direction. Add it!
-# TODO: Stop-Sign Behavior Add
+# TODO: Stop-Sign Behavior Add pRIORITY #3
 # Car
 class Car(sm.SM):
     """
@@ -305,12 +304,14 @@ class Car(sm.SM):
     Behaviors:
         1. Go-to-Goal: Default behavior when there is no obstacle in view.
         2. Avoid Obstacle: When there is some obstacle in view.
+        3. wait at stop sign: When the next edge is a stop sign
 
     Routing:
         1. A* router, when car deviates from designated route.
     """
     AVOID_OBSTACLE = 'AVOID OBSTACLE'
     GO_TO_GOAL = 'GO-TO-GOAL'
+    WAIT_AT_STOP_SIGN = 'WAIT AT STOP SIGN'
 
     def __init__(self, world, start, goal, spec, actions):
         """
@@ -325,6 +326,7 @@ class Car(sm.SM):
         self.goal = goal
         self.actions = actions
         self.visibility = 3
+        self.StopSignMemory = 0
 
         # LTL Processing, Automata
         self.spec = spec
@@ -334,6 +336,7 @@ class Car(sm.SM):
         # Behaviors
         self.go2goal = Go2Goal(world=world, actions=self.actions)
         self.avoidObstacle = AvoidObstacle(world=world, actions=self.actions)
+        #self.waitAtStopSign = waitAtStopSign(world=world, actions=self.actions)
         self.router = Router(world, goal)
 
         # Initialize state machine
@@ -383,15 +386,25 @@ class Car(sm.SM):
         # Check if obstacle is present in view
         myView = self._getViewInfo(inp, visWorld)
         obs = [myView[k].obstacle for k in myView.keys()]
+        if True in obs:
+            obsLoc = list(myView.keys())
+            obsLoc = obsLoc[obs.index(True)]
+
+        # # Check if stop sign is next
+        # nextStop = (inp.stopMap[state%inp.dim][state/inp.dim]) # TODO TEST PRIORITY 3
 
         # print (np.rot90(visWorld))
         # for k in myView.keys():
         #     print(k, str(myView[k]))
 
         # Select Behavior
-        if True in obs:
+        # if nextStop:
+        #     behavior = Car.WAIT_AT_STOP_SIGN
+        #     suggestedMove = self.waitAtStopSign.step(inp=(visWorld, state, suggestedMove, stopSignMemory))   # TODO fix inputs
+
+        if True in obs:     # NOTE NOT ELSE IF!
             behavior = Car.AVOID_OBSTACLE
-            action = self.avoidObstacle.step(inp=(visWorld, state, obs.index(True), suggestedMove))
+            action = self.avoidObstacle.step(inp=(visWorld, state, obsLoc, suggestedMove))   # TODO ensure memory resets if action
         else:
             behavior = Car.GO_TO_GOAL
             action = self.go2goal.step(inp=(state, suggestedMove))      # inp - current position, suggested step
@@ -558,9 +571,25 @@ class Router(sm.SM):
         return grf
 
 
-# TODO: Make it compatible with new state-representation of car.
-# TODO: Opponent plays first.
-# TODO: Assume knowledge dynamics of opponent.
+# waitAtStopSign
+# TODO: PRIORITY 3
+# if there is a stop sign, this will iterate stopsign memory and wait
+class waitAtStopSign(sm.SM):
+    def __init__(self, world, actions):
+
+        # Local variables
+        self.world = world
+        self.myActions = actions
+
+        # Initialize the state machine
+        self.initialize()
+    #Based on a car's personality, the car will wait at the stop sign and return the input suggested action if the time has completed, otherwise will return the current cell as the suggestion
+    def checkWaitTime(self):
+        pass
+
+
+# TODO: Opponent plays first. PRIORITY 2
+# TODO: Assume knowledge dynamics of opponent. PRIORITY 4
 # AvoidObstacle
 class AvoidObstacle(sm.SM):
     def __init__(self, world, actions):
@@ -598,7 +627,7 @@ class AvoidObstacle(sm.SM):
             3. Our location in observable world slice is at
 
         :param state: None
-        :param inp: 3-tuple of (world slice, myCar position, obs-car position)
+        :param inp: 3-tuple of (world slice, myCar position, obs-car position, next suggested move)
         :return: 2-tuple of (None, action)
         """
         # Decouple input
@@ -623,18 +652,21 @@ class AvoidObstacle(sm.SM):
             safeMoves.add(s[0][0][0])
 
         # Compute reachable set
-        reachableSet = [self.world.label(act(self.world.cell(myCar)))
-                        for act in self.myActions if act(self.world.cell(myCar)) in self.world]
+        reachableSet = list()
+        for act in self.myActions:
+            currCell = list(self.world.cell(myCar[0]))
+            outCell = act(currCell + [myCar[1]])
+            outCell = (self.world.label(outCell[0:2]), outCell[2])
+            reachableSet.append((outCell, act))
 
         # Compute possible moves as intersection of reachable set and safe moves
-        possibleMoves = set(reachableSet) & safeMoves
+        possibleMoves = list(set([k[0] for k in reachableSet]) & safeMoves)
 
         # Check if suggested move is possible
-        if suggestedMove in possibleMoves:
-            return None, self.myActions[reachableSet.index(suggestedMove)]
+        if suggestedMove in [p[0] for p in possibleMoves]:
+            return None, reachableSet[[p[0] for p in possibleMoves].index(suggestedMove)][1]
         else:
-            return None, self.myActions[0]        # Need to write selection method. (dummy for now)
-
+            return None, self.myActions[0]        # Need to write selection method. (dummy for now) # TODO: PRIORITY 5
 
     def _graphifyOneStep(self, p1, p2):
         """
@@ -645,14 +677,25 @@ class AvoidObstacle(sm.SM):
         :param p2: label of cell of player 2 = obstacle car
         :return: networkx.DiGraph instance
         """
+        p1, dir = p1
+
         # Initialize graph, start state
         grf = nx.DiGraph()
         startState = ((p1, p2), True)
         grf.startState = startState
 
         # Player 1 takes one step
-        reachableSet1 = [self.world.label(act(self.world.cell(p1)))
-                        for act in self.myActions if act(self.world.cell(p1)) in self.world]
+        # reachableSet1 = [self.world.label(act(self.world.cell(p1)))
+        #                 for act in self.myActions if act(self.world.cell(p1)) in self.world]
+
+        # Compute reachable set
+        reachableSet1 = list()
+        for act in self.myActions:
+            currCell = list(self.world.cell(p1))
+            outCell = act(currCell + [dir])
+            outCell = (self.world.label(outCell[0:2]), outCell[2])
+            reachableSet1.append(outCell)
+
 
         frontier = set()
         for s in reachableSet1:
@@ -1047,13 +1090,36 @@ if __name__ == '__main__':
 
     # Create world
     w = World(roadMap='world55/road.bmp', dim=5, grassMap='world55/grass.bmp')
-    #w.obsMap[0, 1] = 1
-    #print('---Obs---', '\n', np.rot90(w.obsMap))
+    w.obsMap[0, 1] = 1
+    print('---Obs---', '\n', np.rot90(w.obsMap))
 
     c = Car(start=(1, NORTH), goal=23, spec='Ga & Fb', actions=actions, world=w)
     print(c.transduce([w, w, w, w, w, w]))
 
+    # #image creation portion
+    # img = Image.new( 'RGB', (w.dim,w.dim), "white") # create a new black image
+    # pixels = img.load() # create the pixel map
+    # #find original plan
+    # c.transduce([w])
+    # originalPath = c.router.currState
+    # for x in range(0,w.dim):
+    #     for y in range(0,w.dim):
+    #         pixels[x,y] = (0,0,0)
+    # for act in range(0, len(originalPath)):
+    #     pos = w.cell(originalPath[act])
+    #     pixels[pos[1],pos[0]] = (0, 0, 255) # set the colour accordingly
+    # #solve actual
+    # actualPath = c.transduce([w, w, w, w, w,w])
+    # print(actualPath)
+    # #modify image
+    # for act in range(0, len(actualPath)):
+    #     pos = w.cell(actualPath[act][2])
+    #     pixels[pos[1],pos[0]] = (255,0,pixels[pos[1],pos[0]][2]) # set the colour accordingly
+    #
+    # img = img.resize((500,500))
+    # img.rotate(270).show()
+
+
     r = Router(w, 0)
     # print(r.transduce([0, 1, 2, 3, 3]))
-
 
