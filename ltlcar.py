@@ -313,7 +313,7 @@ class Car(sm.SM):
     GO_TO_GOAL = 'GO-TO-GOAL'
     WAIT_AT_STOP_SIGN = 'WAIT AT STOP SIGN'
 
-    def __init__(self, world, start, goal, spec, actions):
+    def __init__(self, world, start, goal, spec, actions, personality):
         """
 
         :param start: label of cell. Integer
@@ -326,7 +326,8 @@ class Car(sm.SM):
         self.goal = goal
         self.actions = actions
         self.visibility = 3
-        self.StopSignMemory = 0
+        self.stopSignMemory = 0
+        self.personality = personality
 
         # LTL Processing, Automata
         self.spec = spec
@@ -336,8 +337,8 @@ class Car(sm.SM):
         # Behaviors
         self.go2goal = Go2Goal(world=world, actions=self.actions)
         self.avoidObstacle = AvoidObstacle(world=world, actions=self.actions)
-        #self.waitAtStopSign = waitAtStopSign(world=world, actions=self.actions)
-        self.router = Router(world, goal)
+        self.waitAtStopSign = waitAtStopSign(memory=self.stopSignMemory, personality=self.personality,actions=self.actions)
+        self.router = Router(world, goal, personality)
 
         # Initialize state machine
         self.initialize()
@@ -382,7 +383,6 @@ class Car(sm.SM):
 
         # Are we on proper route? - Get next ideal move
         suggestedMove = self.router.step(inp=state[0])      # Modify input according to router machine requirements
-
         # Check if obstacle is present in view
         myView = self._getViewInfo(inp, visWorld)
         obs = [myView[k].obstacle for k in myView.keys()]
@@ -391,28 +391,35 @@ class Car(sm.SM):
             obsLoc = obsLoc[obs.index(True)]
 
         # # Check if stop sign is next
-        # nextStop = (inp.stopMap[state%inp.dim][state/inp.dim]) # TODO TEST PRIORITY 3
+        nextStop = (inp.stopMap[x][y]) # TODO TEST PRIORITY 3
 
         # print (np.rot90(visWorld))
         # for k in myView.keys():
         #     print(k, str(myView[k]))
 
         # Select Behavior
-        # if nextStop:
-        #     behavior = Car.WAIT_AT_STOP_SIGN
-        #     suggestedMove = self.waitAtStopSign.step(inp=(visWorld, state, suggestedMove, stopSignMemory))   # TODO fix inputs
-
+        if nextStop:
+            behavior = Car.WAIT_AT_STOP_SIGN
+            initSuggestedMove = suggestedMove
+            suggestedMove = self.waitAtStopSign.step(inp=(state, suggestedMove, self.stopSignMemory))
+            if suggestedMove == initSuggestedMove:
+                nextStop = False
+            else:
+                self.stopSignMemory = self.stopSignMemory + 1
         if True in obs:     # NOTE NOT ELSE IF!
             behavior = Car.AVOID_OBSTACLE
             action = self.avoidObstacle.step(inp=(visWorld, state, obsLoc, suggestedMove))   # TODO ensure memory resets if action
+            if action != suggestedMove: self.stopSignMemory = 0
         else:
-            behavior = Car.GO_TO_GOAL
+            if not nextStop:
+                behavior = Car.GO_TO_GOAL
+                self.stopSignMemory = 0
             action = self.go2goal.step(inp=(state, suggestedMove))      # inp - current position, suggested step
 
         # Perform action
         output = action(list(inp.cell(state[0])) + [state[1]])
         nextState = [inp.label(output[0:2]), output[2]]
-
+        print("my memory is", self.stopSignMemory)
         # Return
         return nextState, (action, behavior, nextState)
 
@@ -474,22 +481,24 @@ class Go2Goal(sm.SM):
 # TODO: Check if plans are correct.
 # Route Machine
 class Router(sm.SM):
-    def __init__(self, world, goal):
+    def __init__(self, world, goal, personality):
         """
         Constructs a router machine, that generates a high-level plan to reach the goal.
 
         :param world: World object
         :param goal: label of cell in world. (integer)
+        :param personality: weighting factor for the car
         """
         # Local variables
         self.world = world
         self.goal = goal
+        self.personality = personality
 
         # State machines variables
         self.startState = list()        # State is route/path plan as list of cells to visit - initialized with no plan
 
         # Graphify
-        self.graph = self._graphify(world)
+        self.graph = self._graphify(world, personality)
 
         # Initialize State Machine
         self.initialize()
@@ -523,7 +532,7 @@ class Router(sm.SM):
         nState.pop(0)
         return nState, output
 
-    def _graphify(self, world):
+    def _graphify(self, world, personality):
         """
         Generates default 8-connectivity between all cells of world.
         This is trivial function. Needs to be refined to appear realistic.
@@ -566,7 +575,7 @@ class Router(sm.SM):
             return tempCost
 
         for edg in grf.edges():
-            grf[edg[0]][edg[1]]['cost'] = _getCost([1]*5, grf.get_edge_data(edg[0], edg[1])['weight'])
+            grf[edg[0]][edg[1]]['cost'] = _getCost(grf.get_edge_data(edg[0], edg[1])['weight'],personality)
 
         return grf
 
@@ -575,17 +584,20 @@ class Router(sm.SM):
 # TODO: PRIORITY 3
 # if there is a stop sign, this will iterate stopsign memory and wait
 class waitAtStopSign(sm.SM):
-    def __init__(self, world, actions):
+    def __init__(self, memory, personality, actions):
 
         # Local variables
-        self.world = world
+        self.memory = memory
+        self.personality = personality
         self.myActions = actions
-
         # Initialize the state machine
         self.initialize()
     #Based on a car's personality, the car will wait at the stop sign and return the input suggested action if the time has completed, otherwise will return the current cell as the suggestion
-    def checkWaitTime(self):
-        pass
+    def getNextValues(self, state, inp):
+        if inp[2] < 5*self.personality[4]: #hasn't waited long enough for personality  
+            return None, self.myActions[0] #SHOULD RETURN WAIT
+        else:
+            return None, inp[1] #SHOULD RETURN ORIGINAL ACTION
 
 
 # TODO: Opponent plays first. PRIORITY 2
@@ -1089,37 +1101,36 @@ if __name__ == '__main__':
     actions = [wait, forward, fwdRight, fwdLeft, right, left]
 
     # Create world
-    w = World(roadMap='world55/road.bmp', dim=5, grassMap='world55/grass.bmp')
+    w = World(roadMap='world55/road.bmp', dim=5, grassMap='world55/grass.bmp', stopMap='world55/stopsign.bmp')
     w.obsMap[0, 1] = 1
     print('---Obs---', '\n', np.rot90(w.obsMap))
 
-    c = Car(start=(1, NORTH), goal=23, spec='Ga & Fb', actions=actions, world=w)
+    c = Car(start=(1, NORTH), goal=23, spec='Ga & Fb', actions=actions, world=w, personality=[1,1,1,1,1])
     print(c.transduce([w, w, w, w, w, w]))
 
-    # #image creation portion
-    # img = Image.new( 'RGB', (w.dim,w.dim), "white") # create a new black image
-    # pixels = img.load() # create the pixel map
-    # #find original plan
-    # c.transduce([w])
-    # originalPath = c.router.currState
-    # for x in range(0,w.dim):
-    #     for y in range(0,w.dim):
-    #         pixels[x,y] = (0,0,0)
-    # for act in range(0, len(originalPath)):
-    #     pos = w.cell(originalPath[act])
-    #     pixels[pos[1],pos[0]] = (0, 0, 255) # set the colour accordingly
-    # #solve actual
-    # actualPath = c.transduce([w, w, w, w, w,w])
-    # print(actualPath)
-    # #modify image
-    # for act in range(0, len(actualPath)):
-    #     pos = w.cell(actualPath[act][2])
-    #     pixels[pos[1],pos[0]] = (255,0,pixels[pos[1],pos[0]][2]) # set the colour accordingly
-    #
-    # img = img.resize((500,500))
-    # img.rotate(270).show()
+    #image creation portion
+    img = Image.new( 'RGB', (w.dim,w.dim), "white") # create a new black image
+    pixels = img.load() # create the pixel map
+    #find original plan
+    c.transduce([w])
+    originalPath = c.router.currState
+    for x in range(0,w.dim):
+        for y in range(0,w.dim):
+            pixels[x,y] = (0,0,0)
+    for act in range(0, len(originalPath)):
+        pos = w.cell(originalPath[act])
+        pixels[pos[1],pos[0]] = (0, 0, 255) # set the colour accordingly
+    #solve actual
+    actualPath = c.transduce([w, w, w, w, w,w,w,w,w,w,w,w,w,w,w,w,w,w,w, w,w,w,w,w,w,w,w,w,w,w,w,w,w,w])
+    print(actualPath)
+    #modify image
+    for act in range(0, len(actualPath)):
+        pos = w.cell(actualPath[act][2][0])
+        pixels[pos[1],pos[0]] = (255,0,pixels[pos[1],pos[0]][2]) # set the colour accordingly
+    img = img.resize((500,500))
+    img.rotate(270).show()
 
 
-    r = Router(w, 0)
+    r = Router(w, 0, [1,1,1,1,1])
     # print(r.transduce([0, 1, 2, 3, 3]))
 
