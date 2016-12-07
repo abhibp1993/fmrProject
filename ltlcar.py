@@ -469,7 +469,7 @@ class Go2Goal(sm.SM):
         # Else, take the best possible move
         else:
             # Compute euclidean distances from suggestedMove
-            dist = [self.world.dist(suggestedMove, s[0]) for s in reachableSet]
+            dist = [self.world.dist(suggestedMove, s[0]) for s in reachableSet] #TODO use actual weighting
 
             # Find index of least distance move
             minIdx = dist.index(min(dist))
@@ -575,7 +575,7 @@ class Router(sm.SM):
             return tempCost
 
         for edg in grf.edges():
-            grf[edg[0]][edg[1]]['cost'] = _getCost(grf.get_edge_data(edg[0], edg[1])['weight'],personality)
+            grf[edg[0]][edg[1]]['cost'] = _getCost(personality,grf.get_edge_data(edg[0], edg[1])['weight'],)
 
         return grf
 
