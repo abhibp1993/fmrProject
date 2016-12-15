@@ -419,7 +419,7 @@ class Car(sm.SM):
         # Perform action
         output = action(list(inp.cell(state[0])) + [state[1]])
         nextState = [inp.label(output[0:2]), output[2]]
-        print("my memory is", self.stopSignMemory)
+        #print("my memory is", self.stopSignMemory)
         # Return
         return nextState, (action, behavior, nextState)
 
@@ -1101,12 +1101,13 @@ if __name__ == '__main__':
     actions = [wait, forward, fwdRight, fwdLeft, right, left]
 
     # Create world
-    w = World(roadMap='world55/road.bmp', dim=5, grassMap='world55/grass.bmp', stopMap='world55/stopsign.bmp')
-    w.obsMap[0, 1] = 1
+    w = World(roadMap='world55/grass2.bmp', dim=10, grassMap='world55/road2.bmp')
+    #w.obsMap[0, 1] = 1
     print('---Obs---', '\n', np.rot90(w.obsMap))
+    print('---Obs---', '\n', np.rot90(w.roadMap))
 
-    c = Car(start=(1, NORTH), goal=23, spec='Ga & Fb', actions=actions, world=w, personality=[1,1,1,1,1])
-    print(c.transduce([w, w, w, w, w, w]))
+    c = Car(start=(1, NORTH), goal=99, spec='Ga & Fb', actions=actions, world=w, personality=[0,0,0,0,0])
+    print(c.transduce([w, w, w, w, w, w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w]))
 
     #image creation portion
     img = Image.new( 'RGB', (w.dim,w.dim), "white") # create a new black image
@@ -1121,7 +1122,7 @@ if __name__ == '__main__':
         pos = w.cell(originalPath[act])
         pixels[pos[1],pos[0]] = (0, 0, 255) # set the colour accordingly
     #solve actual
-    actualPath = c.transduce([w, w, w, w, w,w,w,w,w,w,w,w,w,w,w,w,w,w,w, w,w,w,w,w,w,w,w,w,w,w,w,w,w,w])
+    actualPath = c.transduce([w, w, w, w, w,w,w,w,w,w,w,w,w,w,w,w,w,w,w, w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w])
     print(actualPath)
     #modify image
     for act in range(0, len(actualPath)):
