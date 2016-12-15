@@ -90,7 +90,6 @@ class World(object):
         else:
             return False
 
-
     def _generateLabels(self, dim):
         """
         Generates a map to label cells to integers.
@@ -160,12 +159,13 @@ class World(object):
 
         return tuple(cell)
 
-    def slice(self, cell, dim):
+    def slice(self, cell, dim, direction):
         """
         Returns the label set of square slice of size=dim based at cell along with its occupancy matrix.
 
         :param cell: 2-tuple (x, y)
         :param dim: integer
+        :param direction: direction MACRO from {NORTH, SOUTH, EAST, WEST}
         :return: 2-tuple (labelSet, obsSet)
         @remark: Take care of np.NaNs properly while using it.
         """
@@ -292,6 +292,70 @@ class World(object):
         assert 1 not in np.bitwise_and(self.grassMap, self.roadMap), 'World._validateWorld: Grass and Roads overlap'
 
 
+def slice(self, cell, dim, direction):
+    # Get label
+    mylabel = self.label(cell)
+
+    # transform the world
+    if direction == NORTH: numRot = 0
+    elif direction == SOUTH: numRot = 2
+    elif direction == EAST: numRot = 1
+    else: numRot = 3
+
+    tmpWorld = copy.deepcopy(self.labelMap)
+    tmpWorld = np.rot90(tmpWorld, numRot)
+
+    npCell = np.where(tmpWorld == mylabel)
+    cell = npCell[0].tolist() + npCell[1].tolist()
+    if len(cell) == 0:
+        cell = (np.NaN, np.NaN)
+
+    cell_x = cell[0] - (dim - 1) / 2
+    cell_y = cell[1]
+
+    # Initialize the bounds
+    slice_x_min = 0
+    slice_x_max = dim
+    slice_y_min = 0
+    slice_y_max = dim
+    world_x_min = cell_x
+    world_x_max = cell_x + dim
+    world_y_min = cell_y
+    world_y_max = cell_y + dim
+
+    # Check the X-bounds LOWER
+    if cell_x < 0:
+        slice_x_min = -cell_x
+        world_x_min = 0
+
+    # Check the Y-bounds LOWER
+    if cell_y < 0:
+        slice_y_min = -cell_y
+        world_y_min = 0
+
+    # Check the X-bounds UPPER
+    if cell_x + dim > self.dim:
+        slice_x_max = self.dim - cell_x
+        world_x_max = self.dim
+
+    # Check the Y-bounds UPPER
+    if cell_y + dim > self.dim:
+        slice_y_max = self.dim - cell_y
+        world_y_max = self.dim
+
+    # Initialize the slice
+    sl = np.zeros((dim, dim))
+    sl[:] = np.NaN
+
+    # Update the slice
+    sl[slice_x_min:slice_x_max, slice_y_min:slice_y_max] = \
+        tmpWorld[world_x_min:world_x_max, world_y_min:world_y_max]
+
+    # Return
+    return sl
+
+World.slice = slice
+
 # TODO: Stop-Sign Behavior Add pRIORITY #3
 # Car
 class Car(sm.SM):
@@ -378,7 +442,7 @@ class Car(sm.SM):
             print('Car is out of world! Flying, eh?')
             return state, (None, 'Flying')
 
-        visWorld = inp.slice([x-(self.visibility - 1) / 2, y], self.visibility)
+        visWorld = inp.slice([x-(self.visibility - 1) / 2, y], self.visibility, state[1])
         #print(np.rot90(visWorld))
 
         # Are we on proper route? - Get next ideal move
@@ -391,7 +455,7 @@ class Car(sm.SM):
             obsLoc = obsLoc[obs.index(True)]
 
         # # Check if stop sign is next
-        nextStop = (inp.stopMap[x][y]) # TODO TEST PRIORITY 3
+        nextStop = (inp.stopMap[x][y])  # TODO TEST PRIORITY 3
 
         # print (np.rot90(visWorld))
         # for k in myView.keys():
@@ -402,10 +466,13 @@ class Car(sm.SM):
             behavior = Car.WAIT_AT_STOP_SIGN
             initSuggestedMove = suggestedMove
             suggestedMove = self.waitAtStopSign.step(inp=(state, suggestedMove, self.stopSignMemory))
+            suggestedMove = suggestedMove(state)[0]
             if suggestedMove == initSuggestedMove:
                 nextStop = False
             else:
                 self.stopSignMemory = self.stopSignMemory + 1
+
+
         if True in obs:     # NOTE NOT ELSE IF!
             behavior = Car.AVOID_OBSTACLE
             action = self.avoidObstacle.step(inp=(visWorld, state, obsLoc, suggestedMove))   # TODO ensure memory resets if action
@@ -419,10 +486,50 @@ class Car(sm.SM):
         # Perform action
         output = action(list(inp.cell(state[0])) + [state[1]])
         nextState = [inp.label(output[0:2]), output[2]]
-        print("my memory is", self.stopSignMemory)
+        #print("my memory is", self.stopSignMemory)
         # Return
         return nextState, (action, behavior, nextState)
 
+
+def gnv(self, state, inp):
+    assert isinstance(inp, World), 'inp must be a World instance.'
+
+    # Slice out the world (ideally this should be the input)
+    x, y = inp.cell(state[0])
+    if np.NaN in [x, y]:
+        print('Car is out of world! Flying, eh?')
+        return state, (None, 'Flying')
+
+    #visWorld = inp.slice([x - (self.visibility - 1) / 2, y], self.visibility, state[1])
+    visWorld = inp.slice([x, y], self.visibility, state[1])
+    # print(np.rot90(visWorld))
+
+    # Are we on proper route? - Get next ideal move
+    suggestedMove = self.router.step(inp=state[0])  # Modify input according to router machine requirements
+
+    # Check if obstacle is present in view
+    myView = self._getViewInfo(inp, visWorld)
+    obs = [myView[k].obstacle if k != state[0] else False for k in myView.keys()]
+
+    if True in obs:
+        obsLoc = list(myView.keys())
+        obsLoc = obsLoc[obs.index(True)]
+
+    if True in obs:
+        behavior = Car.AVOID_OBSTACLE
+        action = self.avoidObstacle.step(inp=(visWorld, state, obsLoc, suggestedMove))  # TODO ensure memory resets if action
+    else:
+        behavior = Car.GO_TO_GOAL
+        action = self.go2goal.step(inp=(state, suggestedMove))
+
+    # Perform action
+    output = action(list(inp.cell(state[0])) + [state[1]])
+    nextState = [inp.label(output[0:2]), output[2]]
+    # print("my memory is", self.stopSignMemory)
+    # Return
+    return nextState, (action, behavior, nextState)
+
+Car.getNextValues = gnv
 
 # GoToGoal
 class Go2Goal(sm.SM):
@@ -575,7 +682,7 @@ class Router(sm.SM):
             return tempCost
 
         for edg in grf.edges():
-            grf[edg[0]][edg[1]]['cost'] = _getCost(personality,grf.get_edge_data(edg[0], edg[1])['weight'],)
+            grf[edg[0]][edg[1]]['cost'] = _getCost(personality, grf.get_edge_data(edg[0], edg[1])['weight'],)
 
         return grf
 
@@ -592,9 +699,10 @@ class waitAtStopSign(sm.SM):
         self.myActions = actions
         # Initialize the state machine
         self.initialize()
+
     #Based on a car's personality, the car will wait at the stop sign and return the input suggested action if the time has completed, otherwise will return the current cell as the suggestion
     def getNextValues(self, state, inp):
-        if inp[2] < 5*self.personality[4]: #hasn't waited long enough for personality  
+        if inp[2] < 5*self.personality[2]: #hasn't waited long enough for personality
             return None, self.myActions[0] #SHOULD RETURN WAIT
         else:
             return None, inp[1] #SHOULD RETURN ORIGINAL ACTION
@@ -1105,8 +1213,8 @@ if __name__ == '__main__':
     w.obsMap[0, 1] = 1
     print('---Obs---', '\n', np.rot90(w.obsMap))
 
-    c = Car(start=(1, NORTH), goal=23, spec='Ga & Fb', actions=actions, world=w, personality=[1,1,1,1,1])
-    print(c.transduce([w, w, w, w, w, w]))
+    c = Car(start=(1, NORTH), goal=23, spec='Ga & Fb', actions=actions, world=w, personality=[0, 2, 1, 0, 1])
+    #print(c.transduce([w, w, w, w, w, w]))
 
     #image creation portion
     img = Image.new( 'RGB', (w.dim,w.dim), "white") # create a new black image
@@ -1114,6 +1222,8 @@ if __name__ == '__main__':
     #find original plan
     c.transduce([w])
     originalPath = c.router.currState
+    print(originalPath)
+
     for x in range(0,w.dim):
         for y in range(0,w.dim):
             pixels[x,y] = (0,0,0)
@@ -1131,6 +1241,6 @@ if __name__ == '__main__':
     img.rotate(270).show()
 
 
-    r = Router(w, 0, [1,1,1,1,1])
+    #r = Router(w, 0, [1,1,1,1,1])
     # print(r.transduce([0, 1, 2, 3, 3]))
 
