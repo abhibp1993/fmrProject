@@ -7,6 +7,7 @@ Defines grid-world for simulation.
 """
 
 import numpy as np
+from copy import deepcopy
 
 
 # Class CellAP
@@ -105,7 +106,7 @@ class World(object):
             print('World.__init__: ValueError in dimensions of labels. All labels must be of same size')
 
         # Generate World Representation
-        self.labelMap = self._generateLabels(labels, lastDim)
+        self.world = self._generateLabels(labels, lastDim)
         self.dim = lastDim
 
     def _generateLabels(self, labels, dim):
@@ -215,8 +216,8 @@ class World(object):
         statObsMap = np.zeros(shape=self.dim, dtype=np.bool)
 
         # Update map
-        for label in self.labelMap.keys():
-            statObsMap[self.cell(label)] = self.labelMap[label].isStatObs
+        for label in self.world.keys():
+            statObsMap[self.cell(label)] = self.world[label].isStatObs
 
         return statObsMap
 
@@ -229,8 +230,8 @@ class World(object):
         stopMap = np.zeros(shape=self.dim, dtype=np.bool)
 
         # Update map
-        for label in self.labelMap.keys():
-            stopMap[self.cell(label)] = self.labelMap[label].stopSign
+        for label in self.world.keys():
+            stopMap[self.cell(label)] = self.world[label].stopSign
 
         return stopMap
 
@@ -243,10 +244,26 @@ class World(object):
         roadMap = np.zeros(shape=self.dim, dtype=np.bool)
 
         # Update map
-        for label in self.labelMap.keys():
-            roadMap[self.cell(label)] = self.labelMap[label].isRoad
+        for label in self.world.keys():
+            roadMap[self.cell(label)] = self.world[label].isRoad
 
         return roadMap
+
+    def labelMap(self):
+        """
+        Returns labeled world.
+        :return: bool numpy.array
+        """
+        # Initialize map
+        myWorld = np.zeros(shape=self.dim, dtype=np.uint8)
+
+        # Label the world
+        ROWS, COLS = self.dim
+        for r in range(ROWS):
+            for c in range(COLS):
+                myWorld[r, c] = self.label((r, c))
+
+        return myWorld
 
     def slice(self, label, angle, size):
         """
@@ -255,12 +272,52 @@ class World(object):
             2. x-axis of slice at angle specified as parameter.
             3. dimension of slice specified by size parameter.
 
+        Convention: X-axis (0 deg) is aligned along columns.
+
         :param label: integer label of cell
-        :param angle: valid [0, 2*pi) angle in radians
+        :param angle: multiple of 90 in range [0, 360)
         :param size: 2-tuple size (row, col) of slice.
         :return:
+
+        @remark: extend angle of slice to any value in [0, 360) angle in radians
         """
-        pass
+        assert angle % 90 == 0 and 360 > angle >= 0, 'World.slice: angle must be in [0, 360) range and multiple of 90.'
+
+        # Get the base cell.
+        cellR, cellC = self.cell(label)
+        width, height = size
+
+        # Validate base point
+        ROWS, COLS = self.dim
+        if cellR >= ROWS or cellC >= COLS or (cellR + width) < 0 or (cellC + height) < 0:
+            raise AssertionError('World.slice: Slice does not fit inside world.')
+
+        # Rotate World in reverse way instead of rotating the window
+        rotAngle = int((360 - angle) / 90)
+        world = self.labelMap()
+        world = np.rot90(world, rotAngle)
+
+        # Define slicing bounds
+        slice_row_min = max(0, -cellR)
+        slice_col_min = max(0, -cellC)
+        slice_row_max = min(ROWS, ROWS - cellR)
+        slice_col_max = min(COLS, COLS - cellC)
+
+        world_row_min = max(0, cellR)
+        world_col_min = max(0, cellC)
+        world_row_max = min(ROWS, ROWS + cellR)
+        world_col_max = min(COLS, COLS + cellC)
+
+        # Initialize the slice
+        mySlice = np.zeros(size)
+        mySlice[:] = np.NaN
+
+        # Slice the world!
+        # mySlice[slice_row_min:slice_row_max, slice_col_min:slice_col_max] = \
+        #    world[world_row_min:world_row_max, world_col_min:world_col_max]
+
+        return mySlice[0:4, slice_col_min:slice_col_max], world[0:4, world_col_min:world_col_max]
+
 
 
 # Function: parseMaps
@@ -285,8 +342,8 @@ if __name__ == '__main__':
     w = World(labels)
 
     # Check map labels
-    for k in w.labelMap.keys():
-        print(w.labelMap[k])
+    for k in w.world.keys():
+        print(w.world[k])
 
     #  Check cell to label mapping
     for r in range(4):
@@ -308,3 +365,8 @@ if __name__ == '__main__':
     # Check getRoadMap
     print('getRoadMap-----------')
     print(w.getRoadMap())
+
+    # Check Slicing
+    print('Slicing-----------')
+    print(w.labelMap())
+    print(w.slice(1, 0, (3, 3)))
