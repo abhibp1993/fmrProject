@@ -9,6 +9,7 @@ Defines grid-world for simulation.
 import numpy as np
 
 
+# Class CellAP
 class CellAP:
     """
     Defines a structure representing state of a cell.
@@ -51,7 +52,7 @@ class CellAP:
             ', dynamic obs: ' + str(self.isDynObs) + '}'
 
 
-# World
+# Class World
 class World(object):
     """
     Defines a grid-world.
@@ -189,24 +190,121 @@ class World(object):
 
         return row, col
 
+    # TODO: Test getDynObsMap function after definition, integration of Car class.
+    def getDynObsMap(self):
+        """
+        Returns boolean numpy array of dynamic obstacles.
+        :return: bool numpy.array
+        """
+        # Initialize map
+        obsMap = np.zeros(shape=self.dim, dtype=np.bool)
+
+        # Modify map to include obstacles
+        for car in self.cars:
+            carPosition = car.position      # returns label of cell occupied
+            obsMap[self.cell(carPosition)] = 1
+
+        return obsMap
+
+    def getStatObsMap(self):
+        """
+        Returns boolean numpy array of static obstacles.
+        :return: bool numpy.array
+        """
+        # Initialize map
+        statObsMap = np.zeros(shape=self.dim, dtype=np.bool)
+
+        # Update map
+        for label in self.labelMap.keys():
+            statObsMap[self.cell(label)] = self.labelMap[label].isStatObs
+
+        return statObsMap
+
+    def getStopSignMap(self):
+        """
+        Returns boolean numpy array of stop signs.
+        :return: bool numpy.array
+        """
+        # Initialize map
+        stopMap = np.zeros(shape=self.dim, dtype=np.bool)
+
+        # Update map
+        for label in self.labelMap.keys():
+            stopMap[self.cell(label)] = self.labelMap[label].stopSign
+
+        return stopMap
+
+    def getRoadMap(self):
+        """
+        Returns boolean numpy array of roads.
+        :return: bool numpy.array
+        """
+        # Initialize map
+        roadMap = np.zeros(shape=self.dim, dtype=np.bool)
+
+        # Update map
+        for label in self.labelMap.keys():
+            roadMap[self.cell(label)] = self.labelMap[label].isRoad
+
+        return roadMap
+
+    def slice(self, label, angle, size):
+        """
+        Returns the slice of world with
+            1. left-bottom corner of slice placed on cell specified by label.
+            2. x-axis of slice at angle specified as parameter.
+            3. dimension of slice specified by size parameter.
+
+        :param label: integer label of cell
+        :param angle: valid [0, 2*pi) angle in radians
+        :param size: 2-tuple size (row, col) of slice.
+        :return:
+        """
+        pass
 
 
+# Function: parseMaps
+def parseMaps(bmpRoad=None, bmpStopSign=None, bmpStatObs=None):
+    """
+    Parses the bitmaps and generates binary numpy 2D-arrays to generate world.
 
-# Define dummy map for testing
-labels = {'isRoad': np.ones((4, 3)), 'isStatObs': np.ones((4, 3)), 'stopSign': np.zeros((4, 3))}
+    :param bmpRoad: binary bitmap image
+    :param bmpStopSign: binary bitmap image
+    :param bmpStatObs: binary bitmap image
+    :return: dictionary of form {'isRoad': np.array(x, y), 'isStatObs': np.array(x, y), 'stopSign': np.array(x, y)}
+    """
+    pass
 
-# Instantiate world
-w = World(labels)
 
-# Check map labels
-for k in w.labelMap.keys():
-    print(w.labelMap[k])
+# Main code
+if __name__ == '__main__':
+    # Define dummy map for testing
+    labels = {'isRoad': np.ones((4, 3)), 'isStatObs': np.ones((4, 3)), 'stopSign': np.zeros((4, 3))}
 
-#  Check cell to label mapping
-for r in range(4):
-    for c in range(3):
-        print((r, c), ' ', w.label((r, c)))
+    # Instantiate world
+    w = World(labels)
 
-# Check label to cell mapping
-for i in range(4*3):
-    print(i, ' ', w.cell(i))
+    # Check map labels
+    for k in w.labelMap.keys():
+        print(w.labelMap[k])
+
+    #  Check cell to label mapping
+    for r in range(4):
+        for c in range(3):
+            print((r, c), ' ', w.label((r, c)))
+
+    # Check label to cell mapping
+    for i in range(4*3):
+        print(i, ' ', w.cell(i))
+
+    # Check getStatObsMap
+    print('getStatObs-----------')
+    print(w.getStatObsMap())
+
+    # Check getStopSignMap
+    print('getStopSign-----------')
+    print(w.getStopSignMap())
+
+    # Check getRoadMap
+    print('getRoadMap-----------')
+    print(w.getRoadMap())
