@@ -157,12 +157,15 @@ class World(object):
         row = cell[0]
         col = cell[1]
 
+        # Copy world size
+        ROWS, COLS = self.dim
+
         # If cell is out of bounds, then return NaN
-        if row >= self.dim or row < 0 or col >= self.dim or col < 0:
+        if row >= ROWS or row < 0 or col >= COLS or col < 0:
             return np.NaN
 
         # Else: Return the label of cell
-        return int(self.labelMap[row, col])
+        return int(col+row*COLS)
 
     def cell(self, label):
         """
@@ -173,164 +176,37 @@ class World(object):
         """
         assert isinstance(label, int), 'World.cell: label must be a integer.'
 
-        # Else: Return the label of cell
-        npCell = np.where(self.labelMap == label)
-        cell = npCell[0].tolist() + npCell[1].tolist()
-        if len(cell) == 0:
-            cell = (np.NaN, np.NaN)
+        # Copy world dimensions
+        ROWS, COLS = self.dim
 
-        return tuple(cell)
+        # Check if label is outside world
+        if label >= ROWS * COLS:
+            return np.NaN, np.NaN
 
-    def slice(self, cell, dim, direction):
-        # Get label
-        mylabel = self.label(cell)
+        # Compute the cell
+        col = label % COLS
+        row = int((label - col) / COLS)
 
-        # transform the world
-        if direction == NORTH:
-            numRot = 0
-        elif direction == SOUTH:
-            numRot = 2
-        elif direction == EAST:
-            numRot = 1
-        else:
-            numRot = 3
-
-        tmpWorld = copy.deepcopy(self.labelMap)
-        tmpWorld = np.rot90(tmpWorld, numRot)
-
-        npCell = np.where(tmpWorld == mylabel)
-        cell = npCell[0].tolist() + npCell[1].tolist()
-        if len(cell) == 0:
-            cell = (np.NaN, np.NaN)
-
-        cell_x = cell[0] - (dim - 1) / 2
-        cell_y = cell[1]
-
-        # Initialize the bounds
-        slice_x_min = 0
-        slice_x_max = dim
-        slice_y_min = 0
-        slice_y_max = dim
-        world_x_min = cell_x
-        world_x_max = cell_x + dim
-        world_y_min = cell_y
-        world_y_max = cell_y + dim
-
-        # Check the X-bounds LOWER
-        if cell_x < 0:
-            slice_x_min = -cell_x
-            world_x_min = 0
-
-        # Check the Y-bounds LOWER
-        if cell_y < 0:
-            slice_y_min = -cell_y
-            world_y_min = 0
-
-        # Check the X-bounds UPPER
-        if cell_x + dim > self.dim:
-            slice_x_max = self.dim - cell_x
-            world_x_max = self.dim
-
-        # Check the Y-bounds UPPER
-        if cell_y + dim > self.dim:
-            slice_y_max = self.dim - cell_y
-            world_y_max = self.dim
-
-        # Initialize the slice
-        sl = np.zeros((dim, dim))
-        sl[:] = np.NaN
-
-        # Update the slice
-        sl[slice_x_min:slice_x_max, slice_y_min:slice_y_max] = \
-            tmpWorld[world_x_min:world_x_max, world_y_min:world_y_max]
-
-        # Return
-        return sl
-
-    def info(self, label):
-        """
-        Gets the data associated with the given cell.
-
-        :param label: label of cell (Integer)
-        :return: NodeAP instance.
-        """
-        x, y = self.cell(label)
-
-        if np.NaN in [x, y]:
-            print('Warning: Cell out of world!')
-            return NodeAP()
-        else:
-            return NodeAP(yieldSign=self.yieldMap[x, y],
-                          obstacle=self.obsMap[x, y],
-                          stopSign=self.stopMap[x, y],
-                          grass=self.grassMap[x, y],
-                          road=self.roadMap[x, y])
-
-    def dist(self, label1, label2):
-        """
-        Computes euclidean distance between 2 cells.
-
-        :param label1: label of cell (integer)
-        :param label2: label of cell (integer)
-        :return: float or Inf
-        """
-        if label1 not in self or label2 not in self:
-            return float('Inf')
-        else:
-            x1, y1 = self.cell(label1)
-            x2, y2 = self.cell(label2)
-            return np.linalg.norm([x1-x2, y1-y2])
-
-    def _bmpParser(self, bmpImg):
-        """
-        Converts bitmap image into a numpy array.
-
-        :param bmpImg: PIL.Image
-        :return: 2D numpy.array, with usual --> Y  coordinates.
-                                          X |
-                                            \/
-        @author: Ari, Yicong
-        """
-        # Read image
-        im = Image.open(bmpImg, 'r')
-        pix_val = list(im.getdata())
-
-        # Extract information
-        for pix in range(0, len(pix_val)):
-            if pix_val[pix] > 0:
-                pix_val[pix] = 0
-            else:
-                pix_val[pix] = 1
-
-        # Return in appropriate format
-        return np.reshape(np.array(pix_val), im.size)
-
-    def _validateWorld(self):
-        """
-        Validates the dimension of all parsed bitmaps. Also checks if grass and road are not overlapping.
-
-        :return: None.
-        @author: Abhishek Kulkarni
-        @:raises: AssertionError - If the conditions are not matched.
-        """
-        assert self.roadMap.size == self.grassMap.size and \
-               self.grassMap.size == self.obsMap.size and \
-               self.obsMap.size == self.yieldMap.size and \
-               self.yieldMap.size == self.stopMap.size and \
-               self.stopMap.size == self.dim**2, 'World._validateWorld: Dimensions of bitmaps and world dont match.'
-
-        assert 1 not in np.bitwise_and(self.grassMap, self.roadMap), 'World._validateWorld: Grass and Roads overlap'
-
-    def __contains__(self, item):
-        if isinstance(item, int):
-            return item in self.labelMap
-        elif isinstance(item, (tuple, list)):
-            return self.label(item) in self.labelMap
-        else:
-            return False
+        return row, col
 
 
+
+
+# Define dummy map for testing
 labels = {'isRoad': np.ones((4, 3)), 'isStatObs': np.ones((4, 3)), 'stopSign': np.zeros((4, 3))}
+
+# Instantiate world
 w = World(labels)
+
+# Check map labels
 for k in w.labelMap.keys():
     print(w.labelMap[k])
+
+#  Check cell to label mapping
+for r in range(4):
+    for c in range(3):
+        print((r, c), ' ', w.label((r, c)))
+
+# Check label to cell mapping
+for i in range(4*3):
+    print(i, ' ', w.cell(i))
