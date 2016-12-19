@@ -265,16 +265,16 @@ class World(object):
 
         return myWorld
 
-    def slice(self, label, angle, size):
+    def slice(self, cell, angle, size):
         """
         Returns the slice of world with
-            1. left-bottom corner of slice placed on cell specified by label.
+            1. left-bottom corner of slice placed on cell specified.
             2. x-axis of slice at angle specified as parameter.
             3. dimension of slice specified by size parameter.
 
         Convention: X-axis (0 deg) is aligned along columns.
 
-        :param label: integer label of cell
+        :param cell: integer label of cell
         :param angle: multiple of 90 in range [0, 360)
         :param size: 2-tuple size (row, col) of slice.
         :return:
@@ -284,12 +284,13 @@ class World(object):
         assert angle % 90 == 0 and 360 > angle >= 0, 'World.slice: angle must be in [0, 360) range and multiple of 90.'
 
         # Get the base cell.
-        cellR, cellC = self.cell(label)
+        cellR, cellC = cell
         width, height = size
 
         # Validate base point
-        ROWS, COLS = self.dim
-        if cellR >= ROWS or cellC >= COLS or (cellR + width) < 0 or (cellC + height) < 0:
+        SLICE_ROWS, SLICE_COLS = size
+        WORLD_ROWS, WORLD_COLS = self.dim
+        if cellR >= WORLD_ROWS or cellC >= WORLD_COLS or (cellR + width) <= 0 or (cellC + height) <= 0:
             raise AssertionError('World.slice: Slice does not fit inside world.')
 
         # Rotate World in reverse way instead of rotating the window
@@ -300,23 +301,23 @@ class World(object):
         # Define slicing bounds
         slice_row_min = max(0, -cellR)
         slice_col_min = max(0, -cellC)
-        slice_row_max = min(ROWS, ROWS - cellR)
-        slice_col_max = min(COLS, COLS - cellC)
+        slice_row_max = min(WORLD_ROWS - cellR, SLICE_ROWS)
+        slice_col_max = min(WORLD_COLS - cellC, SLICE_COLS)
 
         world_row_min = max(0, cellR)
         world_col_min = max(0, cellC)
-        world_row_max = min(ROWS, ROWS + cellR)
-        world_col_max = min(COLS, COLS + cellC)
+        world_row_max = min(WORLD_ROWS, SLICE_ROWS + cellR)
+        world_col_max = min(WORLD_COLS, SLICE_COLS + cellC)
 
         # Initialize the slice
         mySlice = np.zeros(size)
         mySlice[:] = np.NaN
 
         # Slice the world!
-        # mySlice[slice_row_min:slice_row_max, slice_col_min:slice_col_max] = \
-        #    world[world_row_min:world_row_max, world_col_min:world_col_max]
+        mySlice[slice_row_min:slice_row_max, slice_col_min:slice_col_max] = \
+           world[world_row_min:world_row_max, world_col_min:world_col_max]
 
-        return mySlice[0:4, slice_col_min:slice_col_max], world[0:4, world_col_min:world_col_max]
+        return mySlice
 
 
 
@@ -369,4 +370,4 @@ if __name__ == '__main__':
     # Check Slicing
     print('Slicing-----------')
     print(w.labelMap())
-    print(w.slice(1, 0, (3, 3)))
+    print(w.slice((-1, -1), 0, (3, 3)))
