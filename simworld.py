@@ -7,8 +7,7 @@ Defines grid-world for simulation.
 """
 
 import numpy as np
-from copy import deepcopy
-
+from PIL import Image
 
 # Class CellAP
 class CellAP:
@@ -322,17 +321,42 @@ class World(object):
 
 
 # Function: parseMaps
-def parseMaps(bmpRoad=None, bmpStopSign=None, bmpStatObs=None):
+def parseMaps(folderPath):
     """
     Parses the bitmaps and generates binary numpy 2D-arrays to generate world.
 
-    :param bmpRoad: binary bitmap image
-    :param bmpStopSign: binary bitmap image
-    :param bmpStatObs: binary bitmap image
+    :param folderPath: Path of folder containing following files.
+        1. road.bmp: binary bitmap image
+        2. stop_sign.bmp: binary bitmap image
+        3. stat_obs.bmp: binary bitmap image
     :return: dictionary of form {'isRoad': np.array(x, y), 'isStatObs': np.array(x, y), 'stopSign': np.array(x, y)}
     """
-    pass
+    # Initialize Dictionary
+    myDict = {'isRoad': None, 'isStatObs': None, 'stopSign': None}
 
+    # Load maps
+    try:
+        road = Image.open(folderPath + "/road.bmp")
+        road = road.convert(mode='1')
+        myDict['isRoad'] = np.logical_not(np.array(road))
+    except IOError:
+        print('parseMaps::Warning: Failed loading Road Map. Configuring all cells as road.')
+
+    try:
+        obsStat = Image.open(folderPath + "/stat_obs.bmp")
+        obsStat = obsStat.convert(mode='1')
+        myDict['isStatObs'] = np.logical_not(np.array(obsStat))
+    except IOError:
+        print('parseMaps::Warning: Failed loading Static Obstacle Map. Assuming no static obstacles in world.')
+
+    try:
+        stopSign = Image.open(folderPath + "/stop_sign.bmp")
+        stopSign = stopSign.convert(mode='1')
+        myDict['stopSign'] = np.logical_not(np.array(stopSign))
+    except IOError:
+        print('parseMaps::Warning: Failed loading Stop Sign Map. Assuming no stop signs in world.')
+
+    return myDict
 
 # Main code
 if __name__ == '__main__':
@@ -371,3 +395,13 @@ if __name__ == '__main__':
     print('Slicing-----------')
     print(w.labelMap())
     print(w.slice((-1, -1), 0, (3, 3)))
+
+    # Check Image Parser
+    bmpDict = parseMaps(folderPath='world1')
+    for k in bmpDict.keys():
+        print(k, bmpDict[k])
+        print('---')
+
+    # Create world using parsed images
+    w2 = World(bmpDict)
+    print('Created new world')
