@@ -20,8 +20,6 @@ SOUTH = 270
 EAST = 0
 
 
-
-
 # TODO: Make the operations efficient. There's a lot of scope for improvement!
 def fwd(world, pose):
     """
@@ -38,7 +36,7 @@ def fwd(world, pose):
     assert heading % 90 == 0 and 0 <= heading < 360, 'opertion fwd: Received unacceptable angle={0}.' % heading
 
     # Define operation {current_heading: (add2row, add2col)}
-    increment_row_col = {EAST: (1, 0), NORTH: (0, 1), WEST: (-1, 0), SOUTH: (0, -1)}
+    increment_row_col = {NORTH: (1, 0), EAST: (0, 1), SOUTH: (-1, 0), WEST: (0, -1)}
 
     # Operate
     cur_cell = world.cell(cell_label)
@@ -48,7 +46,7 @@ def fwd(world, pose):
         return world.label(new_cell), heading
 
     print('operation fwd:: Warning: Operation leading to outside world. Canceling operation.')
-    return pose
+    return None
 
 
 def right(world, pose):
@@ -67,7 +65,7 @@ def right(world, pose):
     assert heading % 90 == 0 and 0 <= heading < 360, 'opertion fwd: Received unacceptable angle={0}.' % heading
 
     # Define operation {current_heading: (add2row, add2col)}
-    increment_row_col = {EAST: (0, -1), NORTH: (1, 0), WEST: (0, 1), SOUTH: (-1, 0)}
+    increment_row_col = {SOUTH: (0, -1), WEST: (1, 0), NORTH: (0, 1), EAST: (-1, 0)}
 
     # Operate
     cur_cell = world.cell(cell_label)
@@ -77,7 +75,7 @@ def right(world, pose):
         return world.label(new_cell), (heading - 90) % 360
 
     print('operation fwd:: Warning: Operation leading to outside world. Canceling operation.')
-    return pose
+    return None
 
 
 def left(world, pose):
@@ -92,11 +90,11 @@ def left(world, pose):
     # Decouple arguments and validate
     # TODO: Verify if assertion errors works as expected.
     cell_label, heading = pose
-    assert cell_label in world, 'opertion fwd: received pose{0} outside of world.' % pose
-    assert heading % 90 == 0 and 0 <= heading < 360, 'opertion fwd: Received unacceptable angle={0}.' % heading
+    assert cell_label in world, 'operation fwd: received pose{0} outside of world.' % pose
+    assert heading % 90 == 0 and 0 <= heading < 360, 'operation fwd: Received unacceptable angle={0}.' % heading
 
     # Define operation {current_heading: (add2row, add2col)}
-    increment_row_col = {EAST: (0, 1), NORTH: (-1, 0), WEST: (0, -1), SOUTH: (1, 0)}
+    increment_row_col = {SOUTH: (0, 1), WEST: (-1, 0), NORTH: (0, -1), EAST: (1, 0)}
 
     # Operate
     cur_cell = world.cell(cell_label)
@@ -106,7 +104,7 @@ def left(world, pose):
         return world.label(new_cell), (heading + 90) % 360
 
     print('operation fwd:: Warning: Operation leading to outside world. Canceling operation.')
-    return pose
+    return None
 
 
 def fwd_right(world, pose):
@@ -125,7 +123,7 @@ def fwd_right(world, pose):
     assert heading % 90 == 0 and 0 <= heading < 360, 'opertion fwd: Received unacceptable angle={0}.' % heading
 
     # Define operation {current_heading: (add2row, add2col)}
-    increment_row_col = {EAST: (1, -1), NORTH: (1, 1), WEST: (-1, 1), SOUTH: (-1, -1)}
+    increment_row_col = {WEST: (1, -1), NORTH: (1, 1), EAST: (-1, 1), SOUTH: (-1, -1)}
 
     # Operate
     cur_cell = world.cell(cell_label)
@@ -135,7 +133,7 @@ def fwd_right(world, pose):
         return world.label(new_cell), heading
 
     print('operation fwd:: Warning: Operation leading to outside world. Canceling operation.')
-    return pose
+    return None
 
 
 def fwd_left(world, pose):
@@ -154,7 +152,7 @@ def fwd_left(world, pose):
     assert heading % 90 == 0 and 0 <= heading < 360, 'opertion fwd: Received unacceptable angle={0}.' % heading
 
     # Define operation {current_heading: (add2row, add2col)}
-    increment_row_col = {EAST: (1, 1), NORTH: (-1, 1), WEST: (-1, -1), SOUTH: (1, -1)}
+    increment_row_col = {EAST: (1, 1), SOUTH: (-1, 1), WEST: (-1, -1), NORTH: (1, -1)}
 
     # Operate
     cur_cell = world.cell(cell_label)
@@ -164,7 +162,7 @@ def fwd_left(world, pose):
         return world.label(new_cell), heading
 
     print('operation fwd:: Warning: Operation leading to outside world. Canceling operation.')
-    return pose
+    return None
 
 
 def wait(world, pose):
@@ -172,7 +170,7 @@ def wait(world, pose):
 
 
 # Define action set for cars.
-CAR_ACTIONS = {fwd: 1, right: 2, left: 3, fwd_right: 1, fwd_left: 1}
+CAR_ACTIONS = {fwd: 10, right: 30, left: 40, fwd_right: 20, fwd_left: 20, wait: 50}
 
 
 class Car(sm.SM):
@@ -244,7 +242,67 @@ class StopSign(sm.SM):
 
 
 class Go2Goal(sm.SM):
-    pass
+    def __init__(self, world, actions):
+        """
+        Constructs Go2Goal Behavior machine.
+        :param world: simworld.World object
+        :param actions: dictionary of {action_fcn: weight}
+        """
+        #  Preprocess (Normalize action weights)
+        maxWt = max([actions[act] for act in actions.keys()])
+        for act in actions.keys():
+            actions[act] /= maxWt
+
+        # Local variables
+        self.world = world
+        self.actions = actions
+
+        # Initialize state
+        self.startState = None
+        self.initialize()
+
+    def getNextValues(self, state, inp):
+        """
+        Transition function.
+
+        :param state: None (Memory less)
+        :param inp: 2-tuple of (suggestedMove, pose)
+        :return: 2-tuple of (None, 2-tuple of (selected action, output of action))
+        """
+        # Decouple arguments
+        suggestedMove, pose = inp
+
+        # Compute reachable set
+        reachableSet = self._computeReachableSet(pose)
+
+        # If suggestedMove is reachable, take it
+        for rchLoc in reachableSet:
+            action, (pos, head) = rchLoc
+            if suggestedMove == pos:
+                return None, (action, (pos, head))
+
+        # Else, suggested move is not reachable: select least cost feasible action
+        feasibleActions = [self.actions[act] for act, _ in reachableSet]
+        cheapestActIdx = feasibleActions.index(min(feasibleActions))
+        action, (pos, head) = reachableSet[cheapestActIdx]
+        return None, (action, (pos, head))
+
+    def _computeReachableSet(self, pose):
+        """
+        Computes the reachable set from given pose assuming world, action set is already known.
+
+        :param pose: (label of cell <integer>, heading angle <range [0, 360)>)
+        :return: list of 2-tuple of (action, poses) reachable.
+        """
+        reachableSet = list()
+        for act in self.actions.keys():
+            nPose = act(self.world, pose)
+            if nPose is None:
+                continue
+
+            reachableSet.append((act, nPose))
+
+        return reachableSet
 
 
 class AvoidObstacle(sm.SM):
@@ -410,11 +468,10 @@ if __name__ == '__main__':
         'g2o': float('Inf'),
     }
     r = Router(myWorld, agg)
-    print(r.grf.number_of_nodes(), r.grf.number_of_edges())
-    for edg in r.grf.edges():
-        print (edg)
 
+    gotogoal = Go2Goal(myWorld, actions=CAR_ACTIONS)
+
+    print(fwd(myWorld, (1, NORTH)))
     print(myWorld.labelMap())
-    print(r.transduce([(8, (1, NORTH)), (0, (2, NORTH))]))
-    print(r.transduce([(8, (1, NORTH)), (8, (2, NORTH))]))
-    print(r.transduce([(8, (1, NORTH)), (8, (4, NORTH))]))
+    print(gotogoal.step((8, (1, NORTH))))
+
