@@ -252,6 +252,9 @@ class AvoidObstacle(sm.SM):
 
 
 class Router(sm.SM):
+    REROUTED = 'rerouted'
+    ON_PATH = 'on path'
+
     def __init__(self, world, aggression):
         """
         Constructs a Router state machine.
@@ -276,6 +279,10 @@ class Router(sm.SM):
         # Internal variables
         self.grf = self._graphify(world, aggression)
 
+        # Initialize state
+        self.startState = (None, list(), None)        # State = 3-tuple (goal, route, None/REROUTED/ON_PATH)
+        self.initialize()
+
     def updateAggression(self, world, aggValue):
         """
         The function may be introduced later to update weights of
@@ -294,7 +301,31 @@ class Router(sm.SM):
         :param inp: 2-tuple (goal <integer>, car pose)
         :return: suggested next cell label <integer>
         """
-        pass
+        # Decouple arguments
+        goal, route, lastState = state
+        nGoal, (pos, heading) = inp
+
+        # No prior path available
+        if lastState is None:
+            nRoute = nx.astar_path(G=self.grf, source=pos, target=nGoal)
+            nState = Router.REROUTED
+
+        # Else, if last computed route is known
+        else:
+            # Reroute if goal has changed or we have deviated route
+            if nGoal != goal or pos not in route:
+                nRoute = nx.astar_path(G=self.grf, source=pos, target=nGoal)
+                nState = Router.REROUTED
+
+            # Else make no change
+            else:
+                nState = Router.ON_PATH
+                nRoute = route
+
+        if len(nRoute) > 1:
+            nRoute.pop(0)
+
+        return (nGoal, nRoute, nState), nRoute[0]
 
     def _graphify(self, world, aggression):
         """
@@ -382,3 +413,8 @@ if __name__ == '__main__':
     print(r.grf.number_of_nodes(), r.grf.number_of_edges())
     for edg in r.grf.edges():
         print (edg)
+
+    print(myWorld.labelMap())
+    print(r.transduce([(8, (1, NORTH)), (0, (2, NORTH))]))
+    print(r.transduce([(8, (1, NORTH)), (8, (2, NORTH))]))
+    print(r.transduce([(8, (1, NORTH)), (8, (4, NORTH))]))
